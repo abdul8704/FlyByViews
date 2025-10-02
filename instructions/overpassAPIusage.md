@@ -40,21 +40,21 @@ node(area.searchArea)["tourism"="viewpoint"];
 
 ## 5. Example Queries
 
-### a) Find peaks within 50 km of Mt. Everest
+### a. Find peaks within 50 km of Mt. Everest
 ```overpassql
 [out:json];
 node(around:50000, 27.9881, 86.9250)["natural"="peak"];
 out;
 ```
 
-### b) Beaches near Mumbai (30 km)
+### b. Beaches near Mumbai (30 km)
 ```overpassql
 [out:json];
 node(around:30000, 19.0760, 72.8777)["natural"="beach"];
 out;
 ```
 
-### c) Viewpoints in Switzerland (using area)
+### c. Viewpoints in Switzerland (using area)
 ```overpassql
 [out:json];
 area[name="Switzerland"]->.a;
@@ -65,31 +65,13 @@ area[name="Switzerland"]->.a;
 out center;
 ```
 
-### d) Lakes along a corridor (bounding box)
+### d. Lakes along a corridor (bounding box)
 ```overpassql
 [out:json];
 way(35.0, 10.0, 37.0, 12.0)["natural"="water"];
 out center;
 ```
 
-## 6. Example Integration (Python)
-```python
-import requests
-
-query = """
-[out:json];
-node(around:50000, 27.9881, 86.9250)["natural"="peak"];
-out;
-"""
-
-url = "https://overpass-api.de/api/interpreter"
-resp = requests.post(url, data={'data': query})
-data = resp.json()
-
-for el in data['elements']:
-    name = el.get('tags', {}).get('name', 'Unnamed')
-    print(f"{name}: {el['lat']}, {el['lon']}")
-```
 
 ## 7. Best Practices
 - Use specific tags to reduce the size of the results.
