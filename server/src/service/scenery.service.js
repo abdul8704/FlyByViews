@@ -1,6 +1,6 @@
 const { OVERPASS_API } = require("../constants/api.constants");
-const { MOUNTAIN_RADIUS, LAKE_RADIUS, BEACH_RADIUS } = require("../constants/app.constants");
-const { haversineDistance } = require("../utils/flight.utils");
+const { MOUNTAIN_RADIUS, LAKE_RADIUS, BEACH_RADIUS, ROUTE_SPACING_KM } = require("../constants/app.constants");
+const { haversineDistance, getCoordinates, getGreatCirclePathByDistance, initialBearing } = require("../utils/flight.utils");
 const axios = require("axios");
 const ApiError = require('../utils/ApiError');
 
@@ -129,22 +129,24 @@ const findLakesRivers = (lat, lon) => queryOverpass(lat, lon, LAKE_RADIUS, [
   { type: 'relation', filter: '["natural"="water"]["water"~"^(sea|ocean|bay|gulf|strait|sound)$",i]' }
 ], 100);
 
-const findBeaches = (lat, lon) => queryOverpass(lat, lon, BEACH_RADIUS, [
+const findCoastline = (lat, lon) => queryOverpass(lat, lon, BEACH_RADIUS, [
   { type: 'way', filter: '["natural"="coastline"]' },
   { type: 'relation', filter: '["natural"="coastline"]' }
 ], 100);
 
-(async () => {
-  const lat = 12.9716;
-  const lon = 77.5946;
 
-  const mountains = await findMountains(lat, lon);
-  const largeWaterBodies = await findLakesRivers(lat, lon);
-  const beaches = await findBeaches(lat, lon);
 
-  console.log("Grouped Mountains:", mountains);
-  console.log("Grouped Large Water Bodies:", largeWaterBodies);
-  console.log("Grouped Coastline:", beaches);
-})();
+// (async () => {
+//   const lat = 12.9716;
+//   const lon = 77.5946;
 
-module.exports = { findMountains, findLakesRivers, findBeaches };
+//   const mountains = await findMountains(lat, lon);
+//   const largeWaterBodies = await findLakesRivers(lat, lon);
+//   const beaches = await findBeaches(lat, lon);
+
+//   console.log("Grouped Mountains:", mountains);
+//   console.log("Grouped Large Water Bodies:", largeWaterBodies);
+//   console.log("Grouped Coastline:", beaches);
+// })();
+
+module.exports = { findMountains, findLakesRivers, findCoastline };

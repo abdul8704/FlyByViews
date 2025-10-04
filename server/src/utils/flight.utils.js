@@ -79,6 +79,19 @@ const getGreatCirclePathByDistance = (lat1, lon1, lat2, lon2, spacingKm = 50) =>
   return path;
 };
 
+// 4b️⃣ Initial bearing from point A to B (degrees 0..360)
+const initialBearing = (lat1, lon1, lat2, lon2) => {
+  const φ1 = toRad(lat1);
+  const φ2 = toRad(lat2);
+  const λ1 = toRad(lon1);
+  const λ2 = toRad(lon2);
+  const y = Math.sin(λ2 - λ1) * Math.cos(φ2);
+  const x = Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(λ2 - λ1);
+  const brng = Math.atan2(y, x);
+  const deg = (toDeg(brng) + 360) % 360;
+  return deg;
+};
+
 // 5️⃣ Generate flight path given two city names
 const generateFlightPath = async (cityA, cityB, spacingKm = 50) => {
   const coordA = await getCoordinates(cityA);
@@ -90,4 +103,4 @@ const generateFlightPath = async (cityA, cityB, spacingKm = 50) => {
   console.log(path);
 };
 
-module.exports = { generateFlightPath, getCoordinates, haversineDistance };
+module.exports = { generateFlightPath, getCoordinates, haversineDistance, getGreatCirclePathByDistance, initialBearing };

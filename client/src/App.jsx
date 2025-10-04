@@ -1,21 +1,22 @@
 import React from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import Layout from './components/Layout';
+import HomePage from './pages/HomePage';
+import LoginPage from './pages/LoginPage';
+import SignupPage from './pages/SignupPage';
 
 function App() {
   return (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      fontFamily: 'system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial, Apple Color Emoji, Segoe UI Emoji',
-      background: '#0f172a',
-      color: 'white'
-    }}>
-      <div>
-        <h1 style={{ margin: 0 }}>Flight Booking</h1>
-        <p style={{ opacity: 0.8 }}>Vite + React scaffold ready.</p>
-      </div>
-    </div>
+    <Router>
+      <Layout>
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/signup" element={<SignupPage />} />
+          {/* Add more routes as needed */}
+        </Routes>
+      </Layout>
+    </Router>
   );
 }
 

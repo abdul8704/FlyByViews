@@ -1,4 +1,5 @@
 const ApiError = require('../utils/ApiError');
+const logger = require('../utils/logger');
 
 const notFoundHandler = (req, res, next) => {
   next(new ApiError(404, 'not_found', 'Route not found'));
@@ -31,6 +32,16 @@ const errorHandler = (err, req, res, next) => {
   if (process.env.NODE_ENV !== 'production' && normalizedError.stack) {
     responseBody.stack = normalizedError.stack;
   }
+
+  // Log error with request context
+  try {
+    logger.error(`Error ${normalizedError.statusCode} ${req.method} ${req.originalUrl}`, {
+      message: normalizedError.message,
+      code: normalizedError.error,
+      details: normalizedError.details,
+      stack: normalizedError.stack,
+    });
+  } catch {}
 
   res.status(normalizedError.statusCode).json(responseBody);
 };
