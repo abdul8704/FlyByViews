@@ -1,51 +1,32 @@
-const ApiError = require('../utils/ApiError');
-const logger = require('../utils/logger');
+const errorHandler = (err, req, res, next) => {
+    console.error(err)
+    const statusCode = err.statusCode || 500;
+    res.status(statusCode);
+
+    const titles = {
+        400: "Validation Error",
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        500: "Internal Server Error",
+    };
+
+    res.json({
+        success: false,
+        data: {
+            title: titles[statusCode] || "Error",
+            message: err.message,
+            ...(err.details && { details: err.details }), // Show extra info if present
+            stackTrace: err.stack,
+        },
+    });
+};
 
 const notFoundHandler = (req, res, next) => {
   next(new ApiError(404, 'not_found', 'Route not found'));
 };
 
-// Centralized error handler
-// If an error is not an ApiError, wrap it as one
-const errorHandler = (err, req, res, next) => {
-  const isApiError = err instanceof ApiError;
-
-  const normalizedError = isApiError
-    ? err
-    : new ApiError(
-        err.statusCode || 500,
-        err.code || 'internal_server_error',
-        err.message || 'Internal Server Error',
-        err.details
-      );
-
-  const responseBody = {
-    success: false,
-    error: normalizedError.error,
-    message: normalizedError.message,
-  };
-
-  if (normalizedError.details) {
-    responseBody.details = normalizedError.details;
-  }
-
-  if (process.env.NODE_ENV !== 'production' && normalizedError.stack) {
-    responseBody.stack = normalizedError.stack;
-  }
-
-  // Log error with request context
-  try {
-    logger.error(`Error ${normalizedError.statusCode} ${req.method} ${req.originalUrl}`, {
-      message: normalizedError.message,
-      code: normalizedError.error,
-      details: normalizedError.details,
-      stack: normalizedError.stack,
-    });
-  } catch {}
-
-  res.status(normalizedError.statusCode).json(responseBody);
+module.exports = {
+  errorHandler,
+  notFoundHandler
 };
-
-module.exports = { notFoundHandler, errorHandler };
-
-
