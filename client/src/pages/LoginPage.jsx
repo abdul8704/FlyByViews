@@ -1,15 +1,14 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import Container from '../components/Container';
 import Card from '../components/Card';
 import Input from '../components/Input';
 import Button from '../components/Button';
 import Logo from '../components/Logo';
-import { validateLogin, validateSignup } from '../utils/validators';
+import { validateLogin } from '../utils/validators';
+import api from '../api/axios';
 
 const LoginPage = () => {
-  const [isLogin, setIsLogin] = useState(true);
-
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -18,6 +17,7 @@ const LoginPage = () => {
   });
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -35,7 +35,7 @@ const LoginPage = () => {
   };
 
   const validateForm = () => {
-    const newErrors = isLogin ? validateLogin(formData) : validateSignup(formData);
+    const newErrors = validateLogin(formData);
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -48,17 +48,26 @@ const LoginPage = () => {
     }
     
     setIsLoading(true);
-    
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      console.log('Login attempt:', formData);
-      // Handle successful login here
+      const response = await api.post('/auth/login', {
+        email: formData.email,
+        password: formData.password
+      });
+
+      console.log('Login successful:', response.data);
+
+      if (response.data.success) {
+        // Redirect to dashboard or home page
+        window.location.href = '/'; // Adjust the path as needed
+      }
     } catch (error) {
       console.error('Login error:', error);
     } finally {
       setIsLoading(false);
     }
+    
+    
+ 
   };
 
   return (
@@ -67,27 +76,23 @@ const LoginPage = () => {
         <div className="text-center mb-8">
           <Logo size="lg" className="mb-4" />
           {/* toggle moved into card (should appear on top of the card) */}
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">
-            {isLogin ? 'Welcome back' : 'Create your account'}
-          </h2>
-          <p className="text-gray-600">
-            {isLogin ? 'Sign in to your FlyByViews account' : 'Join FlyByViews and start exploring the world'}
-          </p>
+          <h2 className="text-3xl font-bold text-gray-900 mb-2">Welcome back</h2>
+          <p className="text-gray-600">Sign in to your FlyByViews account</p>
         </div>
   <Card className="w-full max-w-3xl mx-auto">
           <div className="flex justify-center mt-6">
             <div className="inline-flex rounded-lg bg-gray-100 p-1">
               <button
                 type="button"
-                onClick={() => setIsLogin(true)}
-                className={`px-6 py-2 rounded-md font-medium focus:outline-none focus:ring-0 ${isLogin ? 'bg-white shadow text-black focus:text-black' : 'text-gray-600 focus:text-gray-600'}`}
+                onClick={() => navigate('/login')}
+                className={`px-6 py-2 rounded-md font-medium bg-white shadow text-black focus:outline-none focus:ring-0 focus:text-black`}
               >
-                Sign In
+                Login
               </button>
               <button
                 type="button"
-                onClick={() => setIsLogin(false)}
-                className={`px-6 py-2 rounded-md font-medium focus:outline-none focus:ring-0 ${!isLogin ? 'bg-white shadow text-black focus:text-black' : 'text-gray-600 focus:text-gray-600'}`}
+                onClick={() => navigate('/signup')}
+                className={`px-6 py-2 rounded-md font-medium text-gray-600 focus:outline-none focus:ring-0 focus:text-gray-600`}
               >
                 Sign Up
               </button>
@@ -96,22 +101,8 @@ const LoginPage = () => {
 
           <form
             onSubmit={handleSubmit}
-            className={`space-y-6 transition-all duration-300 ease-in-out transform ${
-              isLogin ? 'translate-x-0 opacity-100' : '-translate-x-2 opacity-100'
-            }`}
+            className={`space-y-6 transition-all duration-300 ease-in-out transform translate-x-0 opacity-100`}
           >
-            {!isLogin && (
-              <Input
-                label="Name"
-                type="text"
-                name="name"
-                placeholder="Enter your full name"
-                value={formData.name}
-                onChange={handleChange}
-                error={errors.name}
-                required
-              />
-            )}
             <Input
               label="Email address"
               type="email"
@@ -134,18 +125,7 @@ const LoginPage = () => {
               required
             />
 
-            {!isLogin && (
-              <Input
-                label="Confirm password"
-                type="password"
-                name="confirmPassword"
-                placeholder="Confirm your password"
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                error={errors.confirmPassword}
-                required
-              />
-            )}
+            {/* confirm password removed from login form */}
 
             <div className="text-right">
               <Link to="/forgot-password" className="text-sm font-medium text-black hover:text-gray-800">
@@ -160,7 +140,7 @@ const LoginPage = () => {
               disabled={isLoading}
               className="w-full"
             >
-              {isLoading ? (isLogin ? 'Signing in...' : 'Creating account...') : (isLogin ? 'Sign in' : 'Create account')}
+              {isLoading ? 'Signing in...' : 'Sign in'}
             </Button>
           </form>
 
