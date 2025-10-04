@@ -7,6 +7,7 @@ const jwtUtils = require("../utils/generateJWT");
 const ApiError = require("../utils/ApiError");
 
 const handleLogin = asyncHandler(async (req, res) => {
+    console.log("Login request received");
     const { email, password } = req.body;
 
     if (!email || !password)
@@ -30,11 +31,11 @@ const handleLogin = asyncHandler(async (req, res) => {
             secure: false,
             sameSite: "Lax",
             maxAge: 1 * 24 * 60 * 60 * 1000, 
-        });
+        })
 
         res.status(200).json({
             success: true,
-            message: "Login successful",
+            message: "Login successfulllll",
             credentials: verifyLogin.userData
         });
     } 
@@ -68,7 +69,7 @@ const sendOTPController = asyncHandler(async (req, res) => {
         await transporter.sendOTP(email, otp);
         console.log("OTP sent to:", email);
 
-        res.status(200).json({ message: "OTP sent successfully" });
+        res.status(200).json({ success: true, message: "OTP sent successfully" });
     } catch (err) {
         throw new ApiError(500, "Failed to send OTP", err.message);
     }
@@ -83,7 +84,7 @@ const handleVerifyOTP = asyncHandler(async (req, res) => {
         await authOTP.deleteOne({ useremail: email });
         return res
             .status(200)
-            .json({ message: "OTP verified successfully" });
+            .json({ success: true, message: "OTP verified successfully" });
         }
 
     throw new ApiError(400, "Incorrect OTP");
@@ -94,7 +95,7 @@ const handleSignup = asyncHandler(async (req, res) => {
     const { email, password, username } = req.body;
 
     if (!username || !email || !password) 
-        throw new ApiError(400, "Username, email, password, and phone number are required.");
+        throw new ApiError(400, "Username, email, password.");
     
     await authService.createNewUser(req.body);
     
@@ -148,11 +149,32 @@ const handleResetPassword = asyncHandler(async (req, res) => {
         res.status(500).json({ success: false, message: "Something went wrong", details: resetPass })
 })
 
+const handleRefreshToken = asyncHandler((req, res) => { // TODO: debug this function
+    const cookies = req.cookies;
+
+    console.log("Cookies received:", cookies);
+
+    if (!cookies?.refreshToken)
+        throw new ApiError(401, "Refresh token not found in cookies". req.cookies);
+
+    const refreshToken = cookies.refreshToken;
+    
+    try {
+        const user = jwt.verify(refreshToken, process.env.JWT_REFRESH_KEY);
+        const newToken = jwtUtils.generateToken({ userid: user.userid });
+        return res.status(201).json({ success: true, token: newToken });
+    } 
+    catch (err) {
+        throw new ApiError(403, "Invalid or expired refresh token", err.message);
+    }
+});
+
 module.exports = {
     handleLogin,
     sendOTPController,
     handleVerifyOTP,
     handleSignup,
     userExists,
-    handleResetPassword
+    handleResetPassword,
+    handleRefreshToken,
 };

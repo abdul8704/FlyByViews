@@ -1,4 +1,6 @@
 const connectDB = require('./src/config/database');
+const cors = require("cors");
+const cookieParser = require("cookie-parser");
 const { notFoundHandler, errorHandler } = require('./src/middlewares/error.middleware');
 const { requestLogger } = require('./src/middlewares/requestLogger.middleware');
 const authRoutes = require('./src/routes/auth.routes');
@@ -7,9 +9,19 @@ const app = express();
 const flightsRoutes = require('./src/routes/flights.routes');
 require('dotenv').config();
 
+const corsOptions = {
+    origin: ["http://localhost:5173", "http://localhost:5174"],
+    credentials: true, // Include cookies and auth headers if needed
+    methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+};
+
+app.use(cors(corsOptions));
+
 // Middlewares
 app.use(express.json());
 app.use(requestLogger);
+app.use(cookieParser());
 
 app.use("/auth", authRoutes);
 app.use('/api/flights', flightsRoutes);
