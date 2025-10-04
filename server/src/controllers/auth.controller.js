@@ -29,14 +29,8 @@ const handleLogin = asyncHandler(async (req, res) => {
             httpOnly: true,
             secure: false,
             sameSite: "Lax",
-            maxAge: 1 * 24 * 60 * 60 * 1000, // TODO: change to 15 mins during deployment 1 days
+            maxAge: 1 * 24 * 60 * 60 * 1000, 
         });
-
-        if (verifyLogin.role === null) {
-            return res
-                .status(200)
-                .json({ success: false, message: "Not admitted yet" });
-        }
 
         res.status(200).json({
             success: true,
@@ -54,6 +48,111 @@ const handleLogin = asyncHandler(async (req, res) => {
         throw new ApiError(500, "IDK what went wrong. Internal Server Error", { reason: err.message });
 });
 
+const sendOTPController = asyncHandler(async (req, res) => {
+    const { email } = req.body;
+    const otp = generateOTP();
+
+    if (!email)
+        throw new ApiError(400, "email is required to send OTP");
+
+    try {
+        await authOTP.replaceOne(
+            { useremail: email },
+            {
+                useremail: email,
+                otp: otp,
+            },
+            { upsert: true }
+        );
+
+        await transporter.sendOTP(email, otp);
+        console.log("OTP sent to:", email);
+
+        res.status(200).json({ message: "OTP sent successfully" });
+    } catch (err) {
+        throw new ApiError(500, "Failed to send OTP", err.message);
+    }
+});
+
+const handleVerifyOTP = asyncHandler(async (req, res) => {
+    const { email, otp } = req.body;
+
+    const storedOTP = await authOTP.findOne({ useremail: email });
+
+    if (storedOTP.otp === Number(otp)) {
+        await authOTP.deleteOne({ useremail: email });
+        return res
+            .status(200)
+            .json({ message: "OTP verified successfully" });
+        }
+
+    throw new ApiError(400, "Incorrect OTP");
+ 
+});
+
+const handleSignup = asyncHandler(async (req, res) => {
+    const { email, password, username } = req.body;
+
+    if (!username || !email || !password) 
+        throw new ApiError(400, "Username, email, password, and phone number are required.");
+    
+    await authService.createNewUser(req.body);
+    
+    const newuser = await authService.getUserByEmail(email);
+
+    const payload = {
+        username: newuser.username,
+        userid: newuser._id,
+        role: newuser.role,
+    };
+
+    const token = jwtUtils.generateToken(payload);
+    const refreshToken = jwtUtils.generateRefreshToken(payload);
+
+    res.cookie("refreshToken", refreshToken, {
+        httpOnly: true,
+        secure: true,
+        sameSite: "None",
+        maxAge: 1 * 24 * 60 * 60 * 1000, // 1 day
+    });
+
+    res.status(200).json({
+        success: true,
+        accessToken: token,
+        message: "Signup Successfull",
+        userId: newuser._id,
+    });
+});
+
+const userExists = asyncHandler(async (req, res) => {
+    const { email } = req.body;
+    const user = await authService.getUserByEmail(email);
+
+    if (user) 
+        return res.status(200).json({ success: true, exists: true });
+    
+    return res.status(200).json({ success: true, exists: false });
+});
+
+const handleResetPassword = asyncHandler(async (req, res) => {
+    const { email, password } = req.body;
+    
+    if (!email || !password)
+        throw new ApiError(400, "Email and new password are required");
+
+    const resetPass = await authService.passwordReset(email, password);
+    
+    if(resetPass.success === true)
+        res.status(201).json({ success: true, message: "Password Changed!!" })
+    else
+        res.status(500).json({ success: false, message: "Something went wrong", details: resetPass })
+})
+
 module.exports = {
     handleLogin,
+    sendOTPController,
+    handleVerifyOTP,
+    handleSignup,
+    userExists,
+    handleResetPassword
 };

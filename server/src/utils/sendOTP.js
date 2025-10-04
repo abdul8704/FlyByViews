@@ -1,6 +1,8 @@
 const transporter = require("./nodemailer");
+require("dotenv").config();
 
 const sendOTP = async (toEmail, otp) => {
+    console.log("Preparing to send OTP to:", toEmail, "OTP:", otp);
     const mailOptions = {
         from: process.env.USER_EMAIL,
         to: toEmail,
@@ -234,7 +236,8 @@ const sendOTP = async (toEmail, otp) => {
     </html>`,
     };
 
-    await transporter.sendMail(mailOptions);
+    const status = await transporter.sendMail(mailOptions);
+    console.log("Email sent status:", status);
 };
 
 module.exports = { sendOTP };
