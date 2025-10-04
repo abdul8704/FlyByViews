@@ -91,7 +91,7 @@ const LoginPage = () => {
           <h2 className="text-3xl font-bold text-gray-900 mb-2">
             Welcome back
           </h2>
-          <p className="text-gray-600">Sign in to your FlyByViews account</p>
+          <p className="text-gray-600">Login to your FlyByViews account</p>
         </div>
         <Card className="w-full max-w-3xl mx-auto">
           <div className="flex justify-center mt-6">
@@ -157,7 +157,7 @@ const LoginPage = () => {
               disabled={isLoading}
               className="w-full"
             >
-              {isLoading ? "Signing in..." : "Sign in"}
+              {isLoading ? "Logging in..." : "Login"}
             </Button>
           </form>
 
