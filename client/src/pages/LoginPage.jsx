@@ -1,19 +1,19 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import Container from '../components/Container';
-import Card from '../components/Card';
-import Input from '../components/Input';
-import Button from '../components/Button';
-import Logo from '../components/Logo';
-import { validateLogin } from '../utils/validators';
-import api from '../api/axios';
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import Container from "../components/Container";
+import Card from "../components/Card";
+import Input from "../components/Input";
+import Button from "../components/Button";
+import Logo from "../components/Logo";
+import { validateLogin } from "../utils/validators";
+import api from "../api/axios";
 
 const LoginPage = () => {
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    confirmPassword: ''
+    name: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
   });
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
@@ -21,15 +21,15 @@ const LoginPage = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
     // Clear error when user starts typing
     if (errors[name]) {
-      setErrors(prev => ({
+      setErrors((prev) => ({
         ...prev,
-        [name]: ''
+        [name]: "",
       }));
     }
   };
@@ -42,32 +42,44 @@ const LoginPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
-    
+
     setIsLoading(true);
     try {
-      const response = await api.post('/auth/login', {
+      const response = await api.post("/auth/login", {
         email: formData.email,
-        password: formData.password
+        password: formData.password,
       });
 
-      console.log('Login successful:', response.data);
+      console.log("Login successful:", response.data);
 
       if (response.data.success) {
         // Redirect to dashboard or home page
-        window.location.href = '/'; // Adjust the path as needed
+        window.location.href = "/"; // Adjust the path as needed
       }
     } catch (error) {
-      console.error('Login error:', error);
+      console.error("Login error:", error);
+      if (error.response && error.response.data.data) {
+        if(error.response.data.data.message === 'Wrong Password') {
+            setErrors((prev) => ({
+              ...prev,
+              password: error.response.data.data.message,
+            }));
+        }
+        else if(error.response.data.data.message === 'User not found with this email'){
+            setErrors((prev) => ({
+              ...prev,
+              email: error.response.data.data.message,
+            }));
+        }
+      }
+      console.error("Login error:", errors);
     } finally {
       setIsLoading(false);
     }
-    
-    
- 
   };
 
   return (
@@ -76,22 +88,24 @@ const LoginPage = () => {
         <div className="text-center mb-8">
           <Logo size="lg" className="mb-4" />
           {/* toggle moved into card (should appear on top of the card) */}
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">Welcome back</h2>
+          <h2 className="text-3xl font-bold text-gray-900 mb-2">
+            Welcome back
+          </h2>
           <p className="text-gray-600">Sign in to your FlyByViews account</p>
         </div>
-  <Card className="w-full max-w-3xl mx-auto">
+        <Card className="w-full max-w-3xl mx-auto">
           <div className="flex justify-center mt-6">
             <div className="inline-flex rounded-lg bg-gray-100 p-1">
               <button
                 type="button"
-                onClick={() => navigate('/login')}
+                onClick={() => navigate("/login")}
                 className={`px-6 py-2 rounded-md font-medium bg-white shadow text-black focus:outline-none focus:ring-0 focus:text-black`}
               >
                 Login
               </button>
               <button
                 type="button"
-                onClick={() => navigate('/signup')}
+                onClick={() => navigate("/signup")}
                 className={`px-6 py-2 rounded-md font-medium text-gray-600 focus:outline-none focus:ring-0 focus:text-gray-600`}
               >
                 Sign Up
@@ -128,7 +142,10 @@ const LoginPage = () => {
             {/* confirm password removed from login form */}
 
             <div className="text-right">
-              <Link to="/forgot-password" className="text-sm font-medium text-black hover:text-gray-800">
+              <Link
+                to="/forgot-password"
+                className="text-sm font-medium text-black hover:text-gray-800"
+              >
                 Forgot your password?
               </Link>
             </div>
@@ -140,7 +157,7 @@ const LoginPage = () => {
               disabled={isLoading}
               className="w-full"
             >
-              {isLoading ? 'Signing in...' : 'Sign in'}
+              {isLoading ? "Signing in..." : "Sign in"}
             </Button>
           </form>
 

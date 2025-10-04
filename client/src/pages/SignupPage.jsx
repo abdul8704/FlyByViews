@@ -50,9 +50,18 @@ const SignupPage = () => {
     setIsLoading(true);
 
     try {
-      // Simulate API call
-      await sendOtp();
-      console.log("Signup attempt:", formData);
+      const response = await api.post("/auth/user-exist", {
+        email: formData.email,
+      })
+      if(response.data.exists) {
+        setErrors((prev) => ({
+          ...prev,
+          email: "Email already exists",
+        }));
+      } else {
+        await sendOtp();
+        console.log("Signup attempt:", formData);
+      }
       // Handle successful signup here
     } catch (error) {
       console.error("Signup error:", error);

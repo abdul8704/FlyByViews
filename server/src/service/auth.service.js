@@ -1,7 +1,7 @@
-const User = require("../models/user.model");
+const User = require("../models/User.model");
 const bcrypt = require("bcrypt");
 const ApiError = require("../utils/ApiError");
-const { get } = require("../utils/nodemailer");
+require("dotenv").config();
 
 const verifyLogin = async (email, password) => {
     const userData = await User.findOne(
