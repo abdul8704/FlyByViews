@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../api/axios';
 import { Card, Button, Input } from '../components';
 import PathMap from './PathMap';
 import { toTitleCase } from '../utils/helper.utils';
@@ -128,7 +128,7 @@ const FlightMapPage = () => {
     setLoading(true);
     try {
       // Call the route-scenery API with just city names
-      const response = await axios.post('/api/flights/route-scenery', {
+      const response = await api.post('/api/flights/route-scenery', {
         sourceCity: formData.sourceCity,
         destCity: formData.destCity,
         departureTime: formData.departureTime,
