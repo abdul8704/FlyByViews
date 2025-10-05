@@ -20,7 +20,7 @@ const HomePage = () => {
               Experience the world's most breathtaking landscapes and cityscapes through our curated collection of aerial photography and flight experiences.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link to="/flight-planner">
+              <Link to="/flight-map">
                 <Button variant="primary" size="lg">
                   Plan Flight Route
                 </Button>
@@ -105,7 +105,7 @@ const HomePage = () => {
               Plan your next flight and explore the magnificent geographical features visible from your aircraft window.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link to="/flight-planner">
+              <Link to="/flight-map">
                 <Button variant="secondary" size="lg">
                   Plan Your Route
                 </Button>
