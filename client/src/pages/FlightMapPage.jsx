@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Card, Button, Input } from '../components';
 import PathMap from './PathMap';
+import { toTitleCase } from '../utils/helper.utils';
 
 const FlightMapPage = () => {
   const navigate = useNavigate();
@@ -190,7 +191,6 @@ const FlightMapPage = () => {
                 value={formData.departureTime}
                 onChange={handleChange}
                 error={errors.departureTime}
-                required
               />
             </div>
             
@@ -202,7 +202,6 @@ const FlightMapPage = () => {
                 value={formData.arrivalTime}
                 onChange={handleChange}
                 error={errors.arrivalTime}
-                required
               />
             </div>
             
@@ -228,19 +227,11 @@ const FlightMapPage = () => {
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-gray-600">Scenery on left side:</span>
-                  <span className="font-medium">{sceneryStats.left}</span>
+                  <span className="font-medium text-gray-600">{sceneryStats.left}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Scenery on right side:</span>
-                  <span className="font-medium">{sceneryStats.right}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Scenery on both sides:</span>
-                  <span className="font-medium">{sceneryStats.both}</span>
-                </div>
-                <div className="flex justify-between font-semibold pt-2 border-t border-gray-200">
-                  <span className="text-gray-900">Total scenery:</span>
-                  <span className="text-blue-600">{sceneryStats.total}</span>
+                  <span className="font-medium text-gray-600">{sceneryStats.right}</span>
                 </div>
               </div>
             </Card>
@@ -259,7 +250,7 @@ const FlightMapPage = () => {
       </div>
       
       {/* Right Panel - Map (2/3 width) */}
-      <div className="w-2/3 relative">
+      <div className="w-2/3 relative min-h-full">
         {/* PathMap Component */}
         <PathMap 
           pathJson={createPathData()}
@@ -277,29 +268,24 @@ const FlightMapPage = () => {
         
         {/* Route Information Overlay */}
         {routeData && (
-          <div className="absolute top-4 left-4 bg-white rounded-lg shadow-lg p-4 text-sm max-w-xs z-[1000]">
-            <h4 className="font-semibold mb-2">Route Information</h4>
+          <div className="absolute top-4 left-4 bg-white rounded-lg shadow-lg p-3 text-sm max-w-md z-[1000]">
+            <h4 className="font-semibold mb-2 text-black">Route Information</h4>
             <div className="space-y-1">
               <div className="flex justify-between">
                 <span className="text-gray-600">From:</span>
-                <span className="font-medium">{formData.sourceCity}</span>
+                <span className="font-medium text-gray-600">{toTitleCase(formData.sourceCity)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">To:</span>
-                <span className="font-medium">{formData.destCity}</span>
+                <span className="font-medium text-gray-600">{toTitleCase(formData.destCity)}</span>
               </div>
               {routeData.metadata?.distance && (
                 <div className="flex justify-between">
                   <span className="text-gray-600">Distance:</span>
-                  <span className="font-medium">{Math.round(routeData.metadata.distance)} km</span>
+                  <span className="font-medium pl-3 text-gray-600">{Math.round(routeData.metadata.distance)} km</span>
                 </div>
               )}
-              {sceneryStats && (
-                <div className="flex justify-between border-t border-gray-200 pt-1 mt-2">
-                  <span className="text-gray-600">Scenery:</span>
-                  <span className="font-medium text-blue-600">{sceneryStats.total}</span>
-                </div>
-              )}
+            
             </div>
           </div>
         )}
