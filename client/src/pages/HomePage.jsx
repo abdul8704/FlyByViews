@@ -20,9 +20,9 @@ const HomePage = () => {
               Experience the world's most breathtaking landscapes and cityscapes through our curated collection of aerial photography and flight experiences.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link to="/flights">
+              <Link to="/flight-planner">
                 <Button variant="primary" size="lg">
-                  Explore Flights
+                  Plan Flight Route
                 </Button>
               </Link>
               <Link to="/signup">
@@ -40,10 +40,10 @@ const HomePage = () => {
         <Container maxWidth="6xl">
           <div className="text-center mb-16">
             <h2 className="text-3xl font-bold text-gray-900 mb-4">
-              Why Choose FlyByViews?
+              Discover Scenic Flight Routes
             </h2>
             <p className="text-lg text-gray-600">
-              We make aerial photography and flight experiences accessible to everyone
+              Plan your flight and discover amazing geographical features along your route
             </p>
           </div>
 
@@ -51,29 +51,14 @@ const HomePage = () => {
             <Card className="text-center">
               <div className="w-16 h-16 bg-black rounded-full flex items-center justify-center mx-auto mb-4">
                 <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-1.447-.894L15 4m0 13V4m-6 3l6-3" />
                 </svg>
               </div>
               <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                Stunning Photography
+                Interactive Route Planning
               </h3>
               <p className="text-gray-600">
-                Access to thousands of high-quality aerial photographs from professional photographers worldwide.
-              </p>
-            </Card>
-
-            <Card className="text-center">
-              <div className="w-16 h-16 bg-black rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                Real-time Updates
-              </h3>
-              <p className="text-gray-600">
-                Get the latest flight information and weather conditions for your aerial photography sessions.
+                Plan your flight route between any two cities and discover scenic points of interest along the way.
               </p>
             </Card>
 
@@ -85,10 +70,24 @@ const HomePage = () => {
                 </svg>
               </div>
               <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                Global Coverage
+                Geographic Features
               </h3>
               <p className="text-gray-600">
-                Explore aerial views from every corner of the world, from bustling cities to remote natural wonders.
+                Discover mountains, volcanoes, and coastlines visible from your flight path on both sides of the aircraft.
+              </p>
+            </Card>
+
+            <Card className="text-center">
+              <div className="w-16 h-16 bg-black rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2V7zm0 0V5a2 2 0 012-2h6l2 2h6a2 2 0 012 2v2M7 13h10M7 17h6" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                Flight Details
+              </h3>
+              <p className="text-gray-600">
+                Get detailed flight information including aircraft heading, sun position, and optimal viewing times.
               </p>
             </Card>
           </div>
@@ -100,16 +99,23 @@ const HomePage = () => {
         <Container maxWidth="4xl">
           <div className="text-center text-white">
             <h2 className="text-4xl font-bold mb-6">
-              Ready to See the World from Above?
+              Ready to Discover Your Flight's Scenic Route?
             </h2>
             <p className="text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
-              Join thousands of photographers and aviation enthusiasts who trust FlyByViews for their aerial adventures.
+              Plan your next flight and explore the magnificent geographical features visible from your aircraft window.
             </p>
-            <Link to="/signup">
-              <Button variant="secondary" size="lg">
-                Start Your Journey
-              </Button>
-            </Link>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Link to="/flight-planner">
+                <Button variant="secondary" size="lg">
+                  Plan Your Route
+                </Button>
+              </Link>
+              <Link to="/signup">
+                <Button variant="outline" size="lg" className="border-white text-white hover:bg-white hover:text-black">
+                  Create Account
+                </Button>
+              </Link>
+            </div>
           </div>
         </Container>
       </section>

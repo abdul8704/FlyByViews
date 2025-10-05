@@ -42,12 +42,18 @@ const getGeoServiceConfig = () => {
   return geoService.getConfig();
 };
 
-// Main function
-const getSceneryAlongRoute = async (sourceCity, destCity) => {
-  const { lat: sLat, lon: sLon } = await getCoordinates(sourceCity);
-  const { lat: dLat, lon: dLon } = await getCoordinates(destCity);
+// Main function - expects coordinate objects from controller
+const getSceneryAlongRoute = async (source, destination) => {
+  // Extract coordinates from the source and destination objects
+  const sLat = source.lat;
+  const sLon = source.lon;
+  const sourceName = source.name;
+  
+  const dLat = destination.lat;
+  const dLon = destination.lon;
+  const destName = destination.name;
 
-  console.log(`Route: ${sourceCity} (${sLat}, ${sLon}) -> ${destCity} (${dLat}, ${dLon})`);
+  console.log(`Route: ${sourceName} (${sLat}, ${sLon}) -> ${destName} (${dLat}, ${dLon})`);
 
   // Use larger spacing for file-based searches to reduce processing time
   const OPTIMIZED_SPACING_KM = ROUTE_SPACING_KM * 3; // Every ~150km instead of 50km

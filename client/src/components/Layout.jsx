@@ -28,10 +28,10 @@ const Layout = ({ children }) => {
                   Home
                 </Link>
                 <Link
-                  to="/flights"
+                  to="/flight-planner"
                   className="text-gray-700 hover:text-black px-3 py-2 rounded-md text-sm font-medium transition-colors"
                 >
-                  Flights
+                  Flight Planner
                 </Link>
                 <Link
                   to="/about"
