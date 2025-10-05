@@ -88,7 +88,10 @@ function expandPathToGreatCircle(path, pointsPerSegment = 64) {
     const b = path[i + 1];
     // choose resolution proportional to distance (min 16, max pointsPerSegment)
     const dist = haversineDistance([a.lat, a.lon], [b.lat, b.lon]);
-    const n = Math.max(16, Math.min(pointsPerSegment, Math.ceil((dist / 1000) * pointsPerSegment)));
+    const n = Math.max(
+      16,
+      Math.min(pointsPerSegment, Math.ceil((dist / 1000) * pointsPerSegment))
+    );
     const segment = greatCirclePoints([a.lat, a.lon], [b.lat, b.lon], n);
     // drop last point to avoid duplicates except for final segment
     if (i < path.length - 2) segment.pop();
@@ -98,10 +101,24 @@ function expandPathToGreatCircle(path, pointsPerSegment = 64) {
 }
 
 // Helper component: fit map bounds to path automatically
+function arraysEqual(a, b) {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i][0] !== b[i][0] || a[i][1] !== b[i][1]) return false;
+  }
+  return true;
+}
+
 function FitBounds({ coords }) {
   const map = useMap();
+  const last = useRef(null);
   useEffect(() => {
     if (!coords || coords.length === 0) return;
+    // Avoid re-fitting if bounds are effectively the same
+    if (last.current && arraysEqual(last.current, coords)) return;
+    last.current = coords;
     map.fitBounds(coords, { padding: [40, 40] });
   }, [coords, map]);
   return null;
@@ -114,7 +131,13 @@ function FitBounds({ coords }) {
  *  - tileUrl: optional tile layer URL (default uses OpenStreetMap)
  *  - pointsPerSegment: numeric: controls smoothness (default 64)
  */
-export default function PathMap({ pathJson = null, tileUrl = null, tileAttribution = '&copy; OpenStreetMap contributors', pointsPerSegment = 96, features = [] }) {
+export default function PathMap({
+  pathJson = null,
+  tileUrl = null,
+  tileAttribution = "&copy; OpenStreetMap contributors",
+  pointsPerSegment = 96,
+  features = [],
+}) {
   // If user passes entire JSON object or just array, normalize
   const rawPath = useMemo(() => {
     if (!pathJson) return null;
@@ -145,7 +168,10 @@ export default function PathMap({ pathJson = null, tileUrl = null, tileAttributi
   }, [features, pathJson]);
 
   // expand to geodesic polyline points
-  const polyline = useMemo(() => expandPathToGreatCircle(path, pointsPerSegment), [path, pointsPerSegment]);
+  const polyline = useMemo(
+    () => expandPathToGreatCircle(path, pointsPerSegment),
+    [path, pointsPerSegment]
+  );
 
   // decide initial center
   const defaultCenter = [20, 0];
@@ -155,7 +181,9 @@ export default function PathMap({ pathJson = null, tileUrl = null, tileAttributi
     start = path[0];
     end = path[path.length - 1];
   }
-  const centre = hasPath ? [(start.lat + end.lat) / 2, (start.lon + end.lon) / 2] : defaultCenter;
+  const centre = hasPath
+    ? [(start.lat + end.lat) / 2, (start.lon + end.lon) / 2]
+    : defaultCenter;
   const initialZoom = hasPath ? 3 : defaultZoom;
 
   const tile = tileUrl || "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
@@ -178,8 +206,14 @@ export default function PathMap({ pathJson = null, tileUrl = null, tileAttributi
 
   return (
     <div className="w-full h-full min-h-[600px] rounded-none overflow-hidden">
-      <MapContainer center={centre} zoom={initialZoom} scrollWheelZoom={true} style={{ height: "100%", width: "100%" }}>
-  <TileLayer url={tile} attribution={tileAttribution} />
+      <MapContainer
+        center={centre}
+        zoom={initialZoom}
+        preferCanvas={true}
+        scrollWheelZoom={true}
+        style={{ height: "100%", width: "100%" }}
+      >
+        <TileLayer url={tile} attribution={tileAttribution} />
 
         {/* fit map to path extent */}
         <FitBounds coords={boundsCoords} />
@@ -197,7 +231,10 @@ export default function PathMap({ pathJson = null, tileUrl = null, tileAttributi
         {rawFeatures.map((feature, idx) => {
           const type = feature.genericType || feature.type || "scenery";
           const color = getFeatureColor(type);
-          const name = feature.name && feature.name !== "Unnamed" ? feature.name : type.replace(/_/g, " ");
+          const name =
+            feature.name && feature.name !== "Unnamed"
+              ? feature.name
+              : type.replace(/_/g, " ");
           return (
             <CircleMarker
               key={`feat-${idx}`}
@@ -208,19 +245,38 @@ export default function PathMap({ pathJson = null, tileUrl = null, tileAttributi
               weight={1}
               fillOpacity={0.85}
             >
-              <Tooltip direction="top" offset={[0, -4]} opacity={1} sticky>
+              <Tooltip direction="top" offset={[0, -4]} opacity={1}>
                 <div style={{ minWidth: 140 }}>
-                  <div style={{ fontWeight: 600, textTransform: "capitalize" }}>{name}</div>
-                  <div style={{ fontSize: 12, color: "#4b5563", textTransform: "capitalize" }}>{type.replace(/_/g, " ")}</div>
+                  <div style={{ fontWeight: 600, textTransform: "capitalize" }}>
+                    {name}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 12,
+                      color: "#4b5563",
+                      textTransform: "capitalize",
+                    }}
+                  >
+                    {type.replace(/_/g, " ")}
+                  </div>
                   {typeof feature.elevation === "number" && (
-                    <div style={{ fontSize: 12, color: "#4b5563" }}>Elevation: {feature.elevation} m</div>
+                    <div style={{ fontSize: 12, color: "#4b5563" }}>
+                      Elevation: {feature.elevation} m
+                    </div>
                   )}
                   <div style={{ fontSize: 12, color: "#6b7280" }}>
                     {feature.lat?.toFixed?.(4)}, {feature.lon?.toFixed?.(4)}
                   </div>
                   {feature.side && (
-                    <div style={{ fontSize: 12, color: "#2563eb", fontWeight: 500 }}>
-                      Visible on {feature.side} side{feature.side === "both" ? "s" : ""}
+                    <div
+                      style={{
+                        fontSize: 12,
+                        color: "#2563eb",
+                        fontWeight: 500,
+                      }}
+                    >
+                      Visible on {feature.side} side
+                      {feature.side === "both" ? "s" : ""}
                     </div>
                   )}
                 </div>

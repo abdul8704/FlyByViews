@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Card, Button, Input } from '../components';
@@ -20,25 +20,60 @@ const FlightMapPage = () => {
   const [routeData, setRouteData] = useState(null);
   const [sourceCoords, setSourceCoords] = useState(null);
   const [destCoords, setDestCoords] = useState(null);
-  const [sceneryStats, setSceneryStats] = useState(null);
+  // Deprecated: previously used simple counts; replaced by detailed table counts
   
   // UI state
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
 
-  // Create path data for PathMap component
-  const createPathData = () => {
-    if (!sourceCoords || !destCoords) {
-      return null;
-    }
-    
+  // Memoize features to avoid re-creating the array on every render
+  const mapFeatures = useMemo(() => {
+    const results = routeData?.results;
+    if (!results) return [];
+    const tag = (arr, side) => (arr || []).map((f) => ({ ...f, side }));
+    return [
+      ...tag(results.left, 'left'),
+      ...tag(results.right, 'right'),
+      ...tag(results.both, 'both'),
+    ];
+  }, [routeData?.results]);
+
+  // Count features by side and type (mountains, coastlines, volcanoes)
+  const sceneryCounts = useMemo(() => {
+    const results = routeData?.results;
+    if (!results) return null;
+
+    const normType = (f) => (f?.genericType || f?.type || '').toLowerCase();
+    const countSide = (arr) => {
+      const counts = { mountain_peak: 0, coastline: 0, volcano: 0, other: 0, total: 0 };
+      (arr || []).forEach((f) => {
+        const t = normType(f);
+        if (t.includes('peak') || t.includes('mountain')) counts.mountain_peak += 1;
+        else if (t.includes('coast')) counts.coastline += 1;
+        else if (t.includes('volcano')) counts.volcano += 1;
+        else counts.other += 1;
+      });
+      counts.total = (arr || []).length;
+      return counts;
+    };
+
+    return {
+      left: countSide(results.left),
+      right: countSide(results.right),
+      both: countSide(results.both),
+    };
+  }, [routeData?.results]);
+
+  // Create stable path data for PathMap component
+  const pathJsonMemo = useMemo(() => {
+    if (!sourceCoords || !destCoords) return null;
     return {
       path: [
         { lat: sourceCoords.lat, lon: sourceCoords.lon },
-        { lat: destCoords.lat, lon: destCoords.lon }
-      ]
+        { lat: destCoords.lat, lon: destCoords.lon },
+      ],
     };
-  };
+  }, [sourceCoords?.lat, sourceCoords?.lon, destCoords?.lat, destCoords?.lon]);
 
 
 
@@ -67,14 +102,6 @@ const FlightMapPage = () => {
     
     if (!formData.destCity.trim()) {
       newErrors.destCity = 'Destination city is required';
-    }
-    
-    if (!formData.departureTime) {
-      newErrors.departureTime = 'Departure time is required';
-    }
-    
-    if (!formData.arrivalTime) {
-      newErrors.arrivalTime = 'Arrival time is required';
     }
     
     // Check if arrival is after departure
@@ -127,15 +154,6 @@ const FlightMapPage = () => {
       
       setRouteData(response.data);
       
-      // Calculate scenery statistics
-      const stats = {
-        left: response.data.results?.left?.length || 0,
-        right: response.data.results?.right?.length || 0,
-        both: response.data.results?.both?.length || 0
-      };
-      stats.total = stats.left + stats.right + stats.both;
-      setSceneryStats(stats);
-      
     } catch (error) {
       console.error('Error planning route:', error);
       setErrors({ 
@@ -164,7 +182,7 @@ const FlightMapPage = () => {
                 name="sourceCity"
                 value={formData.sourceCity}
                 onChange={handleChange}
-                placeholder="e.g., New York, London"
+                placeholder="Chennai"
                 error={errors.sourceCity}
                 required
               />
@@ -177,7 +195,7 @@ const FlightMapPage = () => {
                 name="destCity"
                 value={formData.destCity}
                 onChange={handleChange}
-                placeholder="e.g., Tokyo, Paris"
+                placeholder="Srinagar"
                 error={errors.destCity}
                 required
               />
@@ -214,25 +232,53 @@ const FlightMapPage = () => {
             <Button
               type="submit"
               disabled={loading}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+              className="w-full bg-black hover:bg-blue-700 text-white"
             >
               {loading ? 'Planning Route...' : 'Plan Route & Show Scenery'}
             </Button>
           </form>
           
-          {/* Scenery Statistics */}
-          {sceneryStats && (
+          {/* Scenery Statistics (Left vs Right) */}
+          {sceneryCounts && (
             <Card className="mt-6 p-4">
               <h3 className="text-lg font-semibold text-gray-900 mb-3">Scenery Statistics</h3>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Scenery on left side:</span>
-                  <span className="font-medium text-gray-600">{sceneryStats.left}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Scenery on right side:</span>
-                  <span className="font-medium text-gray-600">{sceneryStats.right}</span>
-                </div>
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm border border-gray-200 rounded-md overflow-hidden">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="text-left px-3 py-2 text-gray-700 font-medium">Type</th>
+                      <th className="text-right px-3 py-2 text-gray-700 font-medium">Left</th>
+                      <th className="text-right px-3 py-2 text-gray-700 font-medium">Right</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="border-t border-gray-200">
+                      <td className="px-3 py-2 text-gray-700">Mountains</td>
+                      <td className="px-3 py-2 text-right text-gray-900">{sceneryCounts.left.mountain_peak}</td>
+                      <td className="px-3 py-2 text-right text-gray-900">{sceneryCounts.right.mountain_peak}</td>
+                    </tr>
+                    <tr className="border-t border-gray-200">
+                      <td className="px-3 py-2 text-gray-700">Coastlines</td>
+                      <td className="px-3 py-2 text-right text-gray-900">{sceneryCounts.left.coastline}</td>
+                      <td className="px-3 py-2 text-right text-gray-900">{sceneryCounts.right.coastline}</td>
+                    </tr>
+                    <tr className="border-t border-gray-200">
+                      <td className="px-3 py-2 text-gray-700">Volcanoes</td>
+                      <td className="px-3 py-2 text-right text-gray-900">{sceneryCounts.left.volcano}</td>
+                      <td className="px-3 py-2 text-right text-gray-900">{sceneryCounts.right.volcano}</td>
+                    </tr>
+                    <tr className="border-t border-gray-200">
+                      <td className="px-3 py-2 text-gray-700">Other</td>
+                      <td className="px-3 py-2 text-right text-gray-900">{sceneryCounts.left.other}</td>
+                      <td className="px-3 py-2 text-right text-gray-900">{sceneryCounts.right.other}</td>
+                    </tr>
+                    <tr className="border-t border-gray-300 bg-gray-50">
+                      <td className="px-3 py-2 font-semibold text-gray-900">Total</td>
+                      <td className="px-3 py-2 text-right font-semibold text-gray-900">{sceneryCounts.left.total}</td>
+                      <td className="px-3 py-2 text-right font-semibold text-gray-900">{sceneryCounts.right.total}</td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </Card>
           )}
@@ -240,10 +286,10 @@ const FlightMapPage = () => {
           {/* Back to Flight Map */}
           <div className="mt-6">
             <Button
-              onClick={() => navigate('/flight-map')}
+              onClick={() => navigate('/')}
               className="w-full bg-gray-600 hover:bg-gray-700 text-white"
             >
-              Back to Flight Map
+              Back to Home
             </Button>
           </div>
         </div>
@@ -253,33 +299,33 @@ const FlightMapPage = () => {
   <div className="w-2/3 relative h-full">
         {/* PathMap Component */}
         <PathMap 
-          pathJson={createPathData()}
+          pathJson={pathJsonMemo}
           tileUrl={"https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png"}
           tileAttribution={"&copy; OpenStreetMap contributors, &copy; CARTO"}
-          features={
-            routeData?.results
-              ? [
-                  ...(routeData.results.left || []).map((f) => ({ ...f, side: 'left' })),
-                  ...(routeData.results.right || []).map((f) => ({ ...f, side: 'right' })),
-                  ...(routeData.results.both || []).map((f) => ({ ...f, side: 'both' })),
-                ]
-              : []
-          }
-          pointsPerSegment={96}
+          features={mapFeatures}
+          pointsPerSegment={64}
         />
         
         {/* Route Information Overlay */}
         {routeData && (
-          <div className="absolute top-4 left-4 bg-white rounded-lg shadow-lg p-3 text-sm max-w-md z-[1000]">
+          <div className="absolute bottom-4 left-4 bg-white rounded-lg shadow-lg p-3 text-sm max-w-md z-[1000]">
             <h4 className="font-semibold mb-2 text-black">Route Information</h4>
             <div className="space-y-1">
               <div className="flex justify-between">
                 <span className="text-gray-600">From:</span>
-                <span className="font-medium text-gray-600">{toTitleCase(formData.sourceCity)}</span>
+                <span className="font-medium text-gray-600">{
+                  toTitleCase(
+                    routeData?.metadata?.source?.name || routeData?.metadata?.source?.originalInput || ''
+                  )
+                }</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">To:</span>
-                <span className="font-medium text-gray-600">{toTitleCase(formData.destCity)}</span>
+                <span className="font-medium text-gray-600">{
+                  toTitleCase(
+                    routeData?.metadata?.destination?.name || routeData?.metadata?.destination?.originalInput || ''
+                  )
+                }</span>
               </div>
               {routeData.metadata?.distance && (
                 <div className="flex justify-between">
