@@ -8,4 +8,35 @@ html, body, #root { height: 100%; margin: 0; }
 body { font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial; }
 
 
+/* Ensure inputs stay white when filled/focused/autofilled */
+input, textarea, select {
+	background-color: #f7f4f4 !important;
+}
+input:focus, textarea:focus, select:focus {
+	background-color: #f3f2f2 !important;
+}
+/* Chrome/Safari autofill */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+textarea:-webkit-autofill,
+textarea:-webkit-autofill:hover,
+textarea:-webkit-autofill:focus,
+select:-webkit-autofill,
+select:-webkit-autofill:hover,
+select:-webkit-autofill:focus {
+	-webkit-box-shadow: 0 0 0px 1000px #ffffff inset !important;
+	box-shadow: 0 0 0px 1000px #ffffff inset !important;
+	-webkit-text-fill-color: #111827 !important; /* Tailwind gray-900 */
+}
+
+/* Firefox autofill */
+input:-moz-autofill,
+textarea:-moz-autofill,
+select:-moz-autofill {
+	box-shadow: 0 0 0px 1000px #ffffff inset !important;
+	-moz-text-fill-color: #111827 !important;
+}
+
+
 

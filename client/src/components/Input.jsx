@@ -16,7 +16,7 @@ const Input = ({
     w-full px-3 py-2 border rounded-lg transition-colors duration-200
     bg-white text-gray-900
     focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent
-    disabled:bg-gray-100 disabled:cursor-not-allowed
+    disabled:cursor-not-allowed
     ${error ? 'border-red-500' : 'border-gray-300'}
     ${className}
   `.trim();

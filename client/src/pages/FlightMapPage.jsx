@@ -149,7 +149,7 @@ const FlightMapPage = () => {
 
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+  <div className="h-screen bg-gray-50 flex">
       {/* Left Panel - Form (1/3 width) */}
       <div className="w-1/3 bg-white shadow-lg overflow-y-auto">
         <div className="p-6">
@@ -237,23 +237,25 @@ const FlightMapPage = () => {
             </Card>
           )}
           
-          {/* Back to Flight Planner */}
+          {/* Back to Flight Map */}
           <div className="mt-6">
             <Button
-              onClick={() => navigate('/flight-planner')}
+              onClick={() => navigate('/flight-map')}
               className="w-full bg-gray-600 hover:bg-gray-700 text-white"
             >
-              Back to Flight Planner
+              Back to Flight Map
             </Button>
           </div>
         </div>
       </div>
       
       {/* Right Panel - Map (2/3 width) */}
-      <div className="w-2/3 relative min-h-full">
+  <div className="w-2/3 relative h-full">
         {/* PathMap Component */}
         <PathMap 
           pathJson={createPathData()}
+          tileUrl={"https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png"}
+          tileAttribution={"&copy; OpenStreetMap contributors, &copy; CARTO"}
           features={
             routeData?.results
               ? [

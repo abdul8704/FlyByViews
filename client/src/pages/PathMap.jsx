@@ -9,7 +9,6 @@ import {
   useMap,
 } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
-import sample from "../utils/sample.json";
 
 // Simple helper: convert degrees <-> radians
 const toRad = (v) => (v * Math.PI) / 180;
@@ -115,7 +114,7 @@ function FitBounds({ coords }) {
  *  - tileUrl: optional tile layer URL (default uses OpenStreetMap)
  *  - pointsPerSegment: numeric: controls smoothness (default 64)
  */
-export default function PathMap({ pathJson = sample, tileUrl = null, pointsPerSegment = 96, features = [] }) {
+export default function PathMap({ pathJson = null, tileUrl = null, tileAttribution = '&copy; OpenStreetMap contributors', pointsPerSegment = 96, features = [] }) {
   // If user passes entire JSON object or just array, normalize
   const rawPath = useMemo(() => {
     if (!pathJson) return null;
@@ -124,14 +123,9 @@ export default function PathMap({ pathJson = sample, tileUrl = null, pointsPerSe
     return null;
   }, [pathJson]);
 
-  // fallback demo path if none provided
-  const demo = [
-    { lat: 37.7749, lon: -122.4194 }, // San Francisco
-    { lat: 51.5074, lon: -0.1278 }, // London
-    { lat: 28.6139, lon: 77.209 }, // New Delhi (approx)
-  ];
-
-  const path = rawPath && rawPath.length >= 2 ? rawPath : demo;
+  // use provided path only when valid; otherwise no path by default
+  const hasPath = Array.isArray(rawPath) && rawPath.length >= 2;
+  const path = hasPath ? rawPath : [];
 
   // normalize features: prefer explicit features prop, else try from pathJson.results
   const rawFeatures = useMemo(() => {
@@ -153,11 +147,16 @@ export default function PathMap({ pathJson = sample, tileUrl = null, pointsPerSe
   // expand to geodesic polyline points
   const polyline = useMemo(() => expandPathToGreatCircle(path, pointsPerSegment), [path, pointsPerSegment]);
 
-  const start = path[0];
-  const end = path[path.length - 1];
-
-  // decide initial center (center of first and last)
-  const centre = [(start.lat + end.lat) / 2, (start.lon + end.lon) / 2];
+  // decide initial center
+  const defaultCenter = [20, 0];
+  const defaultZoom = 2;
+  let start, end;
+  if (hasPath) {
+    start = path[0];
+    end = path[path.length - 1];
+  }
+  const centre = hasPath ? [(start.lat + end.lat) / 2, (start.lon + end.lon) / 2] : defaultCenter;
+  const initialZoom = hasPath ? 3 : defaultZoom;
 
   const tile = tileUrl || "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
 
@@ -178,19 +177,21 @@ export default function PathMap({ pathJson = sample, tileUrl = null, pointsPerSe
   }, [polyline, rawFeatures]);
 
   return (
-    <div className="w-full h-[600px] rounded-2xl overflow-hidden shadow-lg">
-      <MapContainer center={centre} zoom={3} scrollWheelZoom={true} style={{ height: "100%", width: "100%" }}>
-        <TileLayer url={tile} attribution='&copy; OpenStreetMap contributors' />
+    <div className="w-full h-full min-h-[600px] rounded-none overflow-hidden">
+      <MapContainer center={centre} zoom={initialZoom} scrollWheelZoom={true} style={{ height: "100%", width: "100%" }}>
+  <TileLayer url={tile} attribution={tileAttribution} />
 
         {/* fit map to path extent */}
         <FitBounds coords={boundsCoords} />
 
         {/* main path */}
-        <Polyline positions={polyline} weight={3} dashArray={null} />
+        {polyline.length > 0 && (
+          <Polyline positions={polyline} weight={3} dashArray={null} />
+        )}
 
         {/* start and end markers */}
-        <Marker position={[start.lat, start.lon]} />
-        <Marker position={[end.lat, end.lon]} />
+        {hasPath && <Marker position={[start.lat, start.lon]} />}
+        {hasPath && <Marker position={[end.lat, end.lon]} />}
 
         {/* scenery feature markers */}
         {rawFeatures.map((feature, idx) => {

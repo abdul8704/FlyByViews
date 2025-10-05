@@ -6,10 +6,13 @@ import Button from './Button';
 const Layout = ({ children }) => {
   const location = useLocation();
   const isAuthPage = location.pathname === '/login' || location.pathname === '/signup';
+  const fullScreenRoutes = ['/flight-map', '/path-map'];
+  const isFullScreen = fullScreenRoutes.includes(location.pathname);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className={isFullScreen ? "h-screen bg-gray-50 overflow-hidden" : "min-h-screen bg-gray-50"}>
       {/* Navigation */}
+      {!isFullScreen && (
       <nav className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
@@ -28,10 +31,10 @@ const Layout = ({ children }) => {
                   Home
                 </Link>
                 <Link
-                  to="/flight-planner"
+                  to="/flight-map"
                   className="text-gray-700 hover:text-black px-3 py-2 rounded-md text-sm font-medium transition-colors"
                 >
-                  Flight Planner
+                  Flight Map
                 </Link>
                 <Link
                   to="/about"
@@ -60,20 +63,12 @@ const Layout = ({ children }) => {
           </div>
         </div>
       </nav>
+      )}
 
       {/* Main Content */}
-      <main className="flex-1">
+      <main className={isFullScreen ? "h-full" : "flex-1"}>
         {children}
       </main>
-
-      {/* Footer */}
-      <footer className="bg-white border-t border-gray-200 mt-auto">
-        <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-          <div className="text-center text-gray-600">
-            <p>&copy; 2024 FlyByViews. All rights reserved.</p>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 };
