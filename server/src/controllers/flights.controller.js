@@ -1,9 +1,11 @@
 const { getSceneryAlongRoute } = require('../service/trips.service');
 const { testGeoStreaming, testRoute } = require('../service/test.service');
 const { getCoordinates } = require('../utils/geocoding.utils');
+const { cacheGet, cacheSet } = require('../utils/redisClient');
 const Volcano = require('../models/Volcano.model');
 const Peak = require('../models/Peaks.model');
 const Coastline = require('../models/Coastlines.model');
+const { TTL_SECONDS }= require("../constants/app.constants"); // 7 days
 
 const getRouteScenery = async (req, res, next) => {
   try {
@@ -17,6 +19,20 @@ const getRouteScenery = async (req, res, next) => {
     }
 
     console.log(`Planning route: ${sourceCity} → ${destCity}`);
+
+    // Cache key and TTL (7 days)
+    const key = `${String(sourceCity).trim().toLowerCase()}-${String(destCity).trim().toLowerCase()}`;
+
+    // Try cache
+    try {
+      const cached = await cacheGet(key);
+      if (cached) {
+        console.log(`[CACHE HIT] ${key}`);
+        return res.status(200).json(JSON.parse(cached));
+      }
+    } catch (e) {
+      console.log(`[CACHE READ FAIL] ${key}:`, e.message);
+    }
     
     // Geocode both cities to get coordinates
     let sourceCoords, destCoords;
@@ -91,6 +107,14 @@ const getRouteScenery = async (req, res, next) => {
       }
     };
     
+    // Store in cache (best-effort)
+    try {
+      await cacheSet(key, JSON.stringify(response), TTL_SECONDS);
+      console.log(`[CACHE SET] ${key} (ttl=${TTL_SECONDS}s)`);
+    } catch (e) {
+      console.log(`[CACHE WRITE FAIL] ${key}:`, e.message);
+    }
+
     res.status(200).json(response);
   } catch (err) {
     console.error('Route scenery error:', err);
