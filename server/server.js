@@ -27,8 +27,8 @@ app.use("/auth", authRoutes);
 app.use('/api/flights', flightsRoutes);
 
 // Health
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok' });
+app.get('/', (req, res) => {
+  res.json({ status: 'ok', message: "server is running" });
 });
 
 // 404 handler
