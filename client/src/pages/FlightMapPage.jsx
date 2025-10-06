@@ -143,14 +143,30 @@ const FlightMapPage = () => {
       return acc;
     }, { left: 0, right: 0 });
     const best = score.right > score.left ? 'Right side' : 'Left side';
-    const confidence = Math.round((Math.max(score.left, score.right) / (score.left + score.right)) * 100);
     const firstAlt = pts[0].sun.altitude;
     const lastAlt = pts[pts.length - 1].sun.altitude;
     const trend = lastAlt > firstAlt ? 'sunrise' : 'sunset';
     const filtered = pts.filter((p) => (best.startsWith('Right') ? p.relative > 0 : p.relative < 0));
     const bestMoment = filtered.reduce((a, b) => (Math.abs(a.sun.altitude) < Math.abs(b.sun.altitude) ? a : b), filtered[0] || pts[0]);
-    return { best, confidence, trend, at: bestMoment?.t, atLocal: bestMoment ? new Date(bestMoment.t).toLocaleString() : null };
+    return { best, trend, at: bestMoment?.t, atLocal: bestMoment ? new Date(bestMoment.t).toLocaleString() : null };
   }, [sunSeries]);
+
+  // Build scenery-based alternative suggestion (mountains + coastlines) relative to sun recommendation
+  const sceneryAdvice = useMemo(() => {
+    if (!sceneryCounts || !seatRecommendation) return null;
+    const scenicLeft = (sceneryCounts.left?.mountain_peak || 0) + (sceneryCounts.left?.coastline || 0);
+    const scenicRight = (sceneryCounts.right?.mountain_peak || 0) + (sceneryCounts.right?.coastline || 0);
+    const scenicSide = scenicRight > scenicLeft ? 'Right side' : 'Left side';
+    // Determine which feature dominates on that scenic side
+    const counts = scenicSide.startsWith('Right') ? sceneryCounts.right : sceneryCounts.left;
+    const dominantType = (counts.coastline || 0) >= (counts.mountain_peak || 0) ? 'coastlines' : 'mountains';
+    const sunSide = seatRecommendation.best;
+    if (scenicSide === sunSide) {
+      // both align; still provide friendly summary
+      return { scenicSide, dominantType, differs: false };
+    }
+    return { scenicSide, dominantType, differs: true };
+  }, [sceneryCounts, seatRecommendation]);
 
 
 
@@ -357,9 +373,24 @@ const FlightMapPage = () => {
               <h3 className="text-lg font-semibold text-gray-900 mb-2">Seat Recommendation</h3>
               <div className="text-gray-800">
                 <div className="text-xl font-bold">{seatRecommendation.best}</div>
-                <div className="text-sm text-gray-600">Best chance to enjoy {seatRecommendation.trend} · Confidence {seatRecommendation.confidence}%</div>
+                <div className="text-sm text-gray-600">Best chance to enjoy {seatRecommendation.trend}</div>
                 {seatRecommendation.at && (
-                  <div className="text-sm text-gray-600 mt-1">Peak moment around: {seatRecommendation.atLocal}</div>
+                  <div className="text-sm text-gray-600 mt-1">Likely best around: {seatRecommendation.atLocal}</div>
+                )}
+                {sceneryAdvice && sceneryAdvice.differs && (
+                  <div className="text-sm text-gray-700 mt-3">
+                    Prefer views? Choose <span className="font-medium">{sceneryAdvice.scenicSide}</span> for more {sceneryAdvice.dominantType}.
+                  </div>
+                )}
+                {sceneryAdvice && !sceneryAdvice.differs && (
+                  <div className="text-sm text-gray-700 mt-3">
+                    Good news: this side also has more {sceneryAdvice.dominantType} to enjoy.
+                  </div>
+                )}
+                {sceneryAdvice && sceneryAdvice.differs && (
+                  <div className="text-xs text-gray-500 mt-1">
+                    Tip: Book <span className="font-medium">{seatRecommendation.best}</span> for {seatRecommendation.trend}; or <span className="font-medium">{sceneryAdvice.scenicSide}</span> if you prefer {sceneryAdvice.dominantType}.
+                  </div>
                 )}
               </div>
             </Card>
@@ -448,10 +479,10 @@ const FlightMapPage = () => {
         {/* Sun Overlay and Time Slider */}
         {sunSeries.length > 0 && (
           <div className="absolute bottom-4 right-4 bg-white rounded-lg shadow-lg p-3 text-sm max-w-md z-[1000]">
-            <h4 className="font-semibold mb-2 text-black">Sun Overlay</h4>
+            <h4 className="font-semibold mb-2 text-black">Sun & View</h4>
             <ul className="text-gray-700 list-disc pl-5 space-y-1">
-              <li>Amber dot marks subsolar point (sun overhead)</li>
-              <li>Ray shows sun direction relative to aircraft</li>
+              <li>Drag the slider to see where the sun will be during your flight.</li>
+              <li>Amber dot shows where the sun is directly overhead.</li>
             </ul>
             <div className="mt-3">
               <input
@@ -471,7 +502,8 @@ const FlightMapPage = () => {
               )}
               {currentSample && (
                 <div className="mt-1 text-gray-600">
-                  Sun azimuth: {Math.round(currentSample.sun.azimuth)}° · altitude: {Math.round(currentSample.sun.altitude)}° · Look to the <span className="font-medium">{currentSample.side}</span>.
+                  Now: look to the <span className="font-medium">{currentSample.side}</span> to see the sun.
+                  <span className="block text-xs text-gray-500">Closer to the horizon = better sunrise/sunset.</span>
                 </div>
               )}
             </div>
