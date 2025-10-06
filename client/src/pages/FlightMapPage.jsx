@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 import { Card, Button, Input } from '../components';
 import PathMap from './PathMap';
-import { toTitleCase } from '../utils/helper.utils';
+import { toTitleCase, estimateArrivalTime, formatDurationHours } from '../utils/helper.utils';
 
 const FlightMapPage = () => {
   const navigate = useNavigate();
@@ -12,8 +12,7 @@ const FlightMapPage = () => {
   const [formData, setFormData] = useState({
     sourceCity: '',
     destCity: '',
-    departureTime: '',
-    arrivalTime: ''
+    departureTime: ''
   });
   
   // Map and API response state
@@ -104,16 +103,6 @@ const FlightMapPage = () => {
       newErrors.destCity = 'Destination city is required';
     }
     
-    // Check if arrival is after departure
-    if (formData.departureTime && formData.arrivalTime) {
-      const departure = new Date(formData.departureTime);
-      const arrival = new Date(formData.arrivalTime);
-      
-      if (arrival <= departure) {
-        newErrors.arrivalTime = 'Arrival time must be after departure time';
-      }
-    }
-    
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -131,8 +120,8 @@ const FlightMapPage = () => {
       const response = await api.post('/api/flights/route-scenery', {
         sourceCity: formData.sourceCity,
         destCity: formData.destCity,
-        departureTime: formData.departureTime,
-        arrivalTime: formData.arrivalTime
+        // departureTime is optional; include only if provided
+        ...(formData.departureTime ? { departureTime: formData.departureTime } : {})
       });
 
       console.log('Route scenery response:', response.data);
@@ -212,16 +201,7 @@ const FlightMapPage = () => {
               />
             </div>
             
-            <div>
-              <Input
-                label="Arrival Time"
-                type="datetime-local"
-                name="arrivalTime"
-                value={formData.arrivalTime}
-                onChange={handleChange}
-                error={errors.arrivalTime}
-              />
-            </div>
+            {/* Arrival time is computed, not entered */}
             
             {errors.submit && (
               <div className="text-red-600 text-sm bg-red-50 p-3 rounded-md">
@@ -333,6 +313,23 @@ const FlightMapPage = () => {
                   <span className="font-medium pl-3 text-gray-600">{Math.round(routeData.metadata.distance)} km</span>
                 </div>
               )}
+              {/* Estimated arrival based on optional departure time */}
+              {routeData.metadata?.distance && formData.departureTime && (() => {
+                const est = estimateArrivalTime(routeData.metadata.distance, formData.departureTime);
+                if (!est) return null;
+                return (
+                  <>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Duration:</span>
+                      <span className="font-medium pl-3 text-gray-600">{formatDurationHours(est.durationHours)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Est. arrival:</span>
+                      <span className="font-medium pl-3 text-gray-600">{new Date(est.arrival).toLocaleString()}</span>
+                    </div>
+                  </>
+                );
+              })()}
             
             </div>
           </div>
