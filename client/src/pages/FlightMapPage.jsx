@@ -4,7 +4,7 @@ import api from '../api/axios';
 import { Card, Button, Input } from '../components';
 import PathMap from './PathMap';
 import { toTitleCase, estimateArrivalTime, formatDurationHours } from '../utils/helper.utils';
-import { getSunPosition, getSubsolarPoint, initialBearing, greatCircleIntermediate, normalizeRelativeBearing, destinationPoint } from '../utils/sun.utils';
+import { getSunPosition, getSubsolarPoint, initialBearing, greatCircleIntermediate, normalizeRelativeBearing } from '../utils/sun.utils';
 
 const FlightMapPage = () => {
   const navigate = useNavigate();
@@ -14,7 +14,6 @@ const FlightMapPage = () => {
     sourceCity: '',
     destCity: '',
     departureTime: '',
-    cruiseSpeed: 850,
   });
   
   // Map and API response state
@@ -80,9 +79,9 @@ const FlightMapPage = () => {
   // Timing based on distance and speed
   const timing = useMemo(() => {
     if (!routeData?.metadata?.distance || !formData.departureTime) return null;
-    const speed = Number(formData.cruiseSpeed) || 850;
-    return estimateArrivalTime(routeData.metadata.distance, formData.departureTime, speed);
-  }, [routeData?.metadata?.distance, formData.departureTime, formData.cruiseSpeed]);
+    // Use a default cruise speed of 850 km/h
+    return estimateArrivalTime(routeData.metadata.distance, formData.departureTime);
+  }, [routeData?.metadata?.distance, formData.departureTime]);
 
   // Build a time series along the flight to compute sun positions
   const sunSeries = useMemo(() => {
@@ -120,14 +119,6 @@ const FlightMapPage = () => {
     return [{ lat: subsolar.lat, lon: subsolar.lon, type: 'subsolar_point', name: 'Subsolar point' }];
   }, [sunSeries, currentSample]);
 
-  const extraLines = useMemo(() => {
-    if (!currentSample) return [];
-    const start = currentSample.pos;
-    const rayEnd = destinationPoint(start, currentSample.sun.azimuth, 500); // 500 km ray
-    return [
-      { coords: [[start.lat, start.lon], [rayEnd.lat, rayEnd.lon]], color: '#f59e0b', weight: 2, dashArray: '6 6' },
-    ];
-  }, [currentSample]);
 
   const combinedFeatures = useMemo(() => {
     return [...mapFeatures, ...sunOverlayFeatures];
@@ -135,6 +126,11 @@ const FlightMapPage = () => {
 
   const seatRecommendation = useMemo(() => {
     if (!sunSeries.length) return null;
+    // If the sun stays well below the horizon throughout (nautical night ~ -6°)
+    const nightOnly = sunSeries.every(p => p.sun.altitude < -6);
+    if (nightOnly) {
+      return { nightOnly: true };
+    }
     const horizonPts = sunSeries.filter(p => p.isSunNearHorizon);
     const pts = horizonPts.length ? horizonPts : sunSeries;
     const score = pts.reduce((acc, p) => {
@@ -148,7 +144,7 @@ const FlightMapPage = () => {
     const trend = lastAlt > firstAlt ? 'sunrise' : 'sunset';
     const filtered = pts.filter((p) => (best.startsWith('Right') ? p.relative > 0 : p.relative < 0));
     const bestMoment = filtered.reduce((a, b) => (Math.abs(a.sun.altitude) < Math.abs(b.sun.altitude) ? a : b), filtered[0] || pts[0]);
-    return { best, trend, at: bestMoment?.t, atLocal: bestMoment ? new Date(bestMoment.t).toLocaleString() : null };
+    return { best, trend, at: bestMoment?.t, atLocal: bestMoment ? new Date(bestMoment.t).toLocaleString() : null, nightOnly: false };
   }, [sunSeries]);
 
   // Build scenery-based alternative suggestion (mountains + coastlines) relative to sun recommendation
@@ -294,16 +290,7 @@ const FlightMapPage = () => {
                 error={errors.departureTime}
               />
             </div>
-            <div>
-              <Input
-                label="Cruise Speed (km/h)"
-                type="number"
-                name="cruiseSpeed"
-                value={formData.cruiseSpeed}
-                onChange={handleChange}
-                error={errors.cruiseSpeed}
-              />
-            </div>
+            {/* Cruise speed removed: a sensible default is used for timing */}
             
             {/* Arrival time is computed, not entered */}
             
@@ -368,7 +355,7 @@ const FlightMapPage = () => {
           )}
 
           {/* Seat Recommendation */}
-          {seatRecommendation && (
+          {seatRecommendation && !seatRecommendation.nightOnly && (
             <Card className="mt-6 p-4">
               <h3 className="text-lg font-semibold text-gray-900 mb-2">Seat Recommendation</h3>
               <div className="text-gray-800">
@@ -391,6 +378,22 @@ const FlightMapPage = () => {
                   <div className="text-xs text-gray-500 mt-1">
                     Tip: Book <span className="font-medium">{seatRecommendation.best}</span> for {seatRecommendation.trend}; or <span className="font-medium">{sceneryAdvice.scenicSide}</span> if you prefer {sceneryAdvice.dominantType}.
                   </div>
+                )}
+              </div>
+            </Card>
+          )}
+          {seatRecommendation && seatRecommendation.nightOnly && (
+            <Card className="mt-6 p-4">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Seat Recommendation</h3>
+              <div className="text-gray-800">
+                <div className="text-sm text-gray-700">The sun won’t be visible during this flight (nighttime along the route).</div>
+                {sceneryAdvice && (
+                  <div className="text-sm text-gray-700 mt-3">
+                    For views, choose <span className="font-medium">{sceneryAdvice.scenicSide}</span> for more {sceneryAdvice.dominantType}.
+                  </div>
+                )}
+                {!sceneryAdvice && (
+                  <div className="text-sm text-gray-700 mt-3">Choose the side with more scenery on the map.</div>
                 )}
               </div>
             </Card>
@@ -423,13 +426,12 @@ const FlightMapPage = () => {
           tileAttribution={"&copy; OpenStreetMap contributors, &copy; CARTO"}
           features={combinedFeatures}
           currentPoint={currentSample?.pos || null}
-          extraLines={extraLines}
           pointsPerSegment={64}
         />
         
         {/* Route Information Overlay */}
         {routeData && (
-          <div className="absolute bottom-4 left-4 bg-white rounded-lg shadow-lg p-3 text-sm max-w-md z-[1000]">
+          <div className="absolute bottom-4 left-4 bg-white bg-opacity-30 backdrop-blur-sm border border-gray-200 rounded-lg shadow-lg p-3 text-sm max-w-md z-[1000]">
             <h4 className="font-semibold mb-2 text-black">Route Information</h4>
             <div className="space-y-1">
               <div className="flex justify-between">
@@ -478,7 +480,7 @@ const FlightMapPage = () => {
 
         {/* Sun Overlay and Time Slider */}
         {sunSeries.length > 0 && (
-          <div className="absolute bottom-4 right-4 bg-white rounded-lg shadow-lg p-3 text-sm max-w-md z-[1000]">
+          <div className="absolute bottom-4 right-4 bg-white bg-opacity-30 backdrop-blur-sm border border-gray-200 rounded-lg shadow-lg p-3 text-sm max-w-md z-[1000]">
             <h4 className="font-semibold mb-2 text-black">Sun & View</h4>
             <ul className="text-gray-700 list-disc pl-5 space-y-1">
               <li>Drag the slider to see where the sun will be during your flight.</li>
@@ -500,10 +502,15 @@ const FlightMapPage = () => {
                   <span>{new Date(sunSeries[sunSeries.length - 1].t).toLocaleTimeString()}</span>
                 </div>
               )}
-              {currentSample && (
+              {currentSample && seatRecommendation && !seatRecommendation.nightOnly && (
                 <div className="mt-1 text-gray-600">
                   Now: look to the <span className="font-medium">{currentSample.side}</span> to see the sun.
                   <span className="block text-xs text-gray-500">Closer to the horizon = better sunrise/sunset.</span>
+                </div>
+              )}
+              {currentSample && seatRecommendation && seatRecommendation.nightOnly && (
+                <div className="mt-1 text-gray-600">
+                  The sun is below the horizon along your route at this time.
                 </div>
               )}
             </div>

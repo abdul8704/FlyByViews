@@ -249,6 +249,33 @@ export default function PathMap({
             feature.name && feature.name !== "Unnamed"
               ? feature.name
               : type.replace(/_/g, " ");
+          const isSubsolar = (type || '').toLowerCase().includes('subsolar');
+          if (isSubsolar) {
+            // Draw a bright halo + a solid core and a permanent label
+            return (
+              <React.Fragment key={`feat-${idx}`}>
+                <CircleMarker
+                  center={[feature.lat, feature.lon]}
+                  radius={12}
+                  fillColor={color}
+                  color={color}
+                  weight={0}
+                  fillOpacity={0.25}
+                  interactive={false}
+                />
+                <CircleMarker
+                  center={[feature.lat, feature.lon]}
+                  radius={6}
+                  fillColor={color}
+                  color="#111827"
+                  weight={2}
+                  fillOpacity={0.95}
+                >
+                  {/* Intentionally no label to keep the sun unobtrusive */}
+                </CircleMarker>
+              </React.Fragment>
+            );
+          }
           return (
             <CircleMarker
               key={`feat-${idx}`}

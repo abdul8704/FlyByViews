@@ -7,7 +7,6 @@ import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import FlightMapPage from './pages/FlightMapPage';
 import PathMap from './pages/PathMap';
 import SignupPage from './pages/SignupPage';
-import FlightSunMapPage from './pages/FlightSunMapPage';
 
 function App() {
   return (
@@ -21,7 +20,6 @@ function App() {
           <Route path="/flight-map" element={<FlightMapPage />} />
 
           <Route path="/path-map" element={<PathMap />} />
-          <Route path="/sun-seat" element={<FlightSunMapPage />} />
         </Routes>
       </Layout>
     </Router>
