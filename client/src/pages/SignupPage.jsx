@@ -121,7 +121,7 @@ const SignupPage = () => {
       if (resp?.data?.success) {
         // OTP verified; create the user
         await createUser();
-        navigate("/");
+        navigate("/flight-map");
       } else if (resp?.data.data.message === "Incorrect OTP") {
         setOtpError(resp?.data?.data?.message);
       } else {
