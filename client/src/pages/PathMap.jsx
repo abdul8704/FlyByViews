@@ -9,6 +9,27 @@ import {
   useMap,
 } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
+import L from "leaflet";
+import customMarker from "../../assets/marker.png";
+import markerShadow from "leaflet/dist/images/marker-shadow.png";
+
+// Ensure default marker icons load correctly in production builds (Vite/webpack paths)
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: customMarker,
+  iconUrl: customMarker,
+  shadowUrl: markerShadow,
+});
+
+// Create custom icon using marker.png with proper sizing
+const createCustomIcon = () => {
+  return L.icon({
+    iconUrl: customMarker,
+    iconSize: [30, 45],
+    iconAnchor: [15, 45],
+    popupAnchor: [0, -40],
+    tooltipAnchor: [16, -30],
+  });
+};
 
 // Simple helper: convert degrees <-> radians
 const toRad = (v) => (v * Math.PI) / 180;
@@ -190,6 +211,9 @@ export default function PathMap({
 
   const tile = tileUrl || "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
 
+  // Create custom marker icon
+  const markerIcon = useMemo(() => createCustomIcon(), []);
+
   // helper: color by feature type
   const getFeatureColor = (type) => {
     const t = (type || "").toLowerCase();
@@ -238,8 +262,8 @@ export default function PathMap({
         ))}
 
         {/* start and end markers */}
-        {hasPath && <Marker position={[start.lat, start.lon]} />}
-        {hasPath && <Marker position={[end.lat, end.lon]} />}
+        {hasPath && <Marker position={[start.lat, start.lon]} icon={markerIcon} />}
+        {hasPath && <Marker position={[end.lat, end.lon]} icon={markerIcon} />}
 
         {/* scenery feature markers */}
         {rawFeatures.map((feature, idx) => {
