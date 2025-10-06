@@ -101,7 +101,7 @@ const importAllData = async () => {
     await Coastline.deleteMany({});
     console.log('Collections cleared.');
 
-    const dataDir = path.join(__dirname, '../../../overpass-data');
+    const dataDir = path.join(__dirname, '../../overpass-data');
 
     // Import volcanoes
     const volcanoFile = path.join(dataDir, 'asia_volcanoes.ndjson');

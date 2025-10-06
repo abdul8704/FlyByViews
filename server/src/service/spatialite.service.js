@@ -6,7 +6,7 @@ const path = require('path');
 
 class SpatialiteService {
   constructor() {
-    this.dbPath = path.join(__dirname, '../../../data/geo.db');
+    this.dbPath = path.join(__dirname, '../../data/geo.db');
   }
 
   async initDB() {

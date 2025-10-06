@@ -84,8 +84,8 @@ const findFeaturesInRadius = async (filePath, targetLat, targetLon, radiusKm, fe
 
 // Main function to get scenery from NDJSON files
 const getSceneryFromFiles = async (lat, lon, radiusKm = 50) => {
-  const dataPath = path.join(__dirname, '../../../overpass-data');
-  
+  const dataPath = path.join(__dirname, '../../overpass-data');
+
   const files = [
     { path: path.join(dataPath, 'asia_volcanoes.ndjson'), type: 'volcano' },
     { path: path.join(dataPath, 'asia_peaks.ndjson'), type: 'mountain_peak' },
@@ -111,8 +111,8 @@ const getSceneryFromFiles = async (lat, lon, radiusKm = 50) => {
 
 // Optimized version that pre-filters by bounding box
 const getSceneryFromFilesBounded = async (lat, lon, radiusKm = 50) => {
-  const dataPath = path.join(__dirname, '../../../overpass-data');
-  
+  const dataPath = path.join(__dirname, '../../overpass-data');
+  // require('../../overpass-data')
   // Calculate bounding box for quick filtering
   const latRadiusKm = radiusKm / 111; // Rough conversion: 1 degree ≈ 111km
   const lonRadiusKm = radiusKm / (111 * Math.cos(lat * Math.PI / 180));

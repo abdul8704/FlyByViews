@@ -9,7 +9,7 @@ class GridService {
     this.gridSizeKm = gridSizeKm;
     this.gridSizeDegrees = gridSizeKm / 111; // Rough conversion
     this.gridIndex = new Map();
-    this.dataPath = path.join(__dirname, '../../../data/grid');
+    this.dataPath = path.join(__dirname, '../../data/grid');
   }
 
   // Convert lat/lon to grid cell ID
@@ -88,11 +88,10 @@ class GridService {
     }
 
     const files = [
-      { path: '../../../overpass-data/asia_volcanoes.ndjson', type: 'volcano' },
-      { path: '../../../overpass-data/asia_peaks.ndjson', type: 'peak' },
-      { path: '../../../overpass-data/asia_coastlines.ndjson', type: 'coastline' }
+      { path: '../../overpass-data/asia_volcanoes.ndjson', type: 'volcano' },
+      { path: '../../overpass-data/asia_peaks.ndjson', type: 'peak' },
+      { path: '../../overpass-data/asia_coastlines.ndjson', type: 'coastline' }
     ];
-
     const gridData = new Map();
 
     for (const file of files) {
