@@ -224,10 +224,16 @@ export default function PathMap({
     return "#666666"; // default gray
   };
 
-  // bounds should include polyline and features
+  // bounds should include polyline and static features only (exclude dynamic sun overlay)
   const boundsCoords = useMemo(() => {
     const arr = [...polyline];
-    rawFeatures.forEach((f) => arr.push([f.lat, f.lon]));
+    // Only include static scenery features, not dynamic sun overlay features
+    rawFeatures.forEach((f) => {
+      const type = (f.type || '').toLowerCase();
+      if (!type.includes('subsolar')) {
+        arr.push([f.lat, f.lon]);
+      }
+    });
     return arr;
   }, [polyline, rawFeatures]);
 

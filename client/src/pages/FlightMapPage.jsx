@@ -116,6 +116,7 @@ const FlightMapPage = () => {
     if (!sunSeries.length) return [];
     const sample = currentSample ?? sunSeries[Math.floor(sunSeries.length / 2)];
     const subsolar = getSubsolarPoint(sample.t);
+    console.log('Creating subsolar point:', subsolar, 'at time:', sample.t);
     return [{ lat: subsolar.lat, lon: subsolar.lon, type: 'subsolar_point', name: 'Subsolar point' }];
   }, [sunSeries, currentSample]);
 
@@ -484,7 +485,7 @@ const FlightMapPage = () => {
             <h4 className="font-semibold mb-2 text-black">Sun & View</h4>
             <ul className="text-gray-700 list-disc pl-5 space-y-1">
               <li>Drag the slider to see where the sun will be during your flight.</li>
-              <li>Amber dot shows where the sun is directly overhead.</li>
+              <li>Yellow dot shows where the sun is directly overhead.</li>
             </ul>
             <div className="mt-3">
               <input
