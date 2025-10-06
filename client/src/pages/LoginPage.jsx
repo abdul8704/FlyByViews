@@ -58,7 +58,7 @@ const LoginPage = () => {
 
       if (response.data.success) {
         // Redirect to dashboard or home page
-        window.location.href = "/"; // Adjust the path as needed
+        window.location.href = "/flight-map"; // Adjust the path as needed
       }
     } catch (error) {
       console.error("Login error:", error);

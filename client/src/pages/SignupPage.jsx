@@ -150,7 +150,7 @@ const SignupPage = () => {
       const resp = await api.post("/auth/signup", payload);
       if (resp?.data?.success) {
         // Registration complete - redirect to home or login
-        window.location.href = "/";
+        window.location.href = "/flight-map";
       } else {
         setErrors((prev) => ({
           ...prev,
