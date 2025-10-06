@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const BASE_URL = import.meta.env.VITE_BASE_URL || "http://localhost:5000";
+const BASE_URL = import.meta.env.VITE_BASE_URL;
 
 // Token refresh management
 let isRefreshing = false;

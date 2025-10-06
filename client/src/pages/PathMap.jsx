@@ -137,6 +137,8 @@ export default function PathMap({
   tileAttribution = "&copy; OpenStreetMap contributors",
   pointsPerSegment = 96,
   features = [],
+  currentPoint = null, // {lat, lon}
+  extraLines = [], // [{ coords: [[lat, lon], [lat, lon], ...], color?: string, weight?: number, dashArray?: string|null }]
 }) {
   // If user passes entire JSON object or just array, normalize
   const rawPath = useMemo(() => {
@@ -191,6 +193,7 @@ export default function PathMap({
   // helper: color by feature type
   const getFeatureColor = (type) => {
     const t = (type || "").toLowerCase();
+    if (t.includes('subsolar')) return '#f59e0b'; // amber for subsolar point
     if (t.includes("volcano")) return "#FF4500"; // orange/red
     if (t.includes("coast")) return "#4169E1"; // royal blue
     if (t.includes("peak") || t.includes("mountain")) return "#8B4513"; // saddle brown
@@ -222,6 +225,17 @@ export default function PathMap({
         {polyline.length > 0 && (
           <Polyline positions={polyline} weight={3} dashArray={null} />
         )}
+
+        {/* extra polylines (e.g., sun rays) */}
+        {extraLines?.map((ln, idx) => (
+          <Polyline
+            key={`extra-${idx}`}
+            positions={ln.coords}
+            weight={ln.weight ?? 2}
+            color={ln.color ?? '#f59e0b'}
+            dashArray={ln.dashArray ?? '6 6'}
+          />
+        ))}
 
         {/* start and end markers */}
         {hasPath && <Marker position={[start.lat, start.lon]} />}
@@ -284,6 +298,22 @@ export default function PathMap({
             </CircleMarker>
           );
         })}
+
+        {/* current aircraft position marker */}
+        {currentPoint && (
+          <CircleMarker
+            center={[currentPoint.lat, currentPoint.lon]}
+            radius={6}
+            fillColor="#ffffff"
+            color="#111827"
+            weight={2}
+            fillOpacity={0.95}
+          >
+            <Tooltip direction="top" offset={[0, -6]} opacity={1}>
+              <div style={{ fontSize: 12, color: '#111827' }}>Current aircraft position</div>
+            </Tooltip>
+          </CircleMarker>
+        )}
       </MapContainer>
     </div>
   );

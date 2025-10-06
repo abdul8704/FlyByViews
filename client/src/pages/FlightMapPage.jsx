@@ -4,6 +4,7 @@ import api from '../api/axios';
 import { Card, Button, Input } from '../components';
 import PathMap from './PathMap';
 import { toTitleCase, estimateArrivalTime, formatDurationHours } from '../utils/helper.utils';
+import { getSunPosition, getSubsolarPoint, initialBearing, greatCircleIntermediate, normalizeRelativeBearing, destinationPoint } from '../utils/sun.utils';
 
 const FlightMapPage = () => {
   const navigate = useNavigate();
@@ -12,7 +13,8 @@ const FlightMapPage = () => {
   const [formData, setFormData] = useState({
     sourceCity: '',
     destCity: '',
-    departureTime: ''
+    departureTime: '',
+    cruiseSpeed: 850,
   });
   
   // Map and API response state
@@ -24,6 +26,7 @@ const FlightMapPage = () => {
   // UI state
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  const [scrubIdx, setScrubIdx] = useState(0);
 
   // Memoize features to avoid re-creating the array on every render
   const mapFeatures = useMemo(() => {
@@ -73,6 +76,81 @@ const FlightMapPage = () => {
       ],
     };
   }, [sourceCoords?.lat, sourceCoords?.lon, destCoords?.lat, destCoords?.lon]);
+
+  // Timing based on distance and speed
+  const timing = useMemo(() => {
+    if (!routeData?.metadata?.distance || !formData.departureTime) return null;
+    const speed = Number(formData.cruiseSpeed) || 850;
+    return estimateArrivalTime(routeData.metadata.distance, formData.departureTime, speed);
+  }, [routeData?.metadata?.distance, formData.departureTime, formData.cruiseSpeed]);
+
+  // Build a time series along the flight to compute sun positions
+  const sunSeries = useMemo(() => {
+    if (!sourceCoords || !destCoords || !timing) return [];
+    const totalH = timing.durationHours;
+    const totalMs = totalH * 3600 * 1000;
+    const dep = new Date(formData.departureTime);
+    const steps = Math.max(6, Math.min(36, Math.ceil(totalH * 6))); // ~10 min cadence
+    const bearing = initialBearing(sourceCoords, destCoords);
+    const out = [];
+    for (let i = 0; i <= steps; i++) {
+      const f = i / steps;
+      const t = new Date(dep.getTime() + f * totalMs);
+      const pos = greatCircleIntermediate(sourceCoords, destCoords, f);
+      const sun = getSunPosition(t, pos.lat, pos.lon);
+      const rel = normalizeRelativeBearing(sun.azimuth - bearing);
+      const side = rel > 0 ? 'right' : 'left';
+      const isSunNearHorizon = Math.abs(sun.altitude) <= 10;
+      out.push({ t, f, pos, sun, bearing, relative: rel, side, isSunNearHorizon });
+    }
+    return out;
+  }, [sourceCoords, destCoords, timing, formData.departureTime]);
+
+  const currentSample = useMemo(() => {
+    if (!sunSeries.length) return null;
+    const idx = Math.min(Math.max(0, scrubIdx), sunSeries.length - 1);
+    return sunSeries[idx];
+  }, [sunSeries, scrubIdx]);
+
+  // Sun overlay (subsolar point) and ray from aircraft
+  const sunOverlayFeatures = useMemo(() => {
+    if (!sunSeries.length) return [];
+    const sample = currentSample ?? sunSeries[Math.floor(sunSeries.length / 2)];
+    const subsolar = getSubsolarPoint(sample.t);
+    return [{ lat: subsolar.lat, lon: subsolar.lon, type: 'subsolar_point', name: 'Subsolar point' }];
+  }, [sunSeries, currentSample]);
+
+  const extraLines = useMemo(() => {
+    if (!currentSample) return [];
+    const start = currentSample.pos;
+    const rayEnd = destinationPoint(start, currentSample.sun.azimuth, 500); // 500 km ray
+    return [
+      { coords: [[start.lat, start.lon], [rayEnd.lat, rayEnd.lon]], color: '#f59e0b', weight: 2, dashArray: '6 6' },
+    ];
+  }, [currentSample]);
+
+  const combinedFeatures = useMemo(() => {
+    return [...mapFeatures, ...sunOverlayFeatures];
+  }, [mapFeatures, sunOverlayFeatures]);
+
+  const seatRecommendation = useMemo(() => {
+    if (!sunSeries.length) return null;
+    const horizonPts = sunSeries.filter(p => p.isSunNearHorizon);
+    const pts = horizonPts.length ? horizonPts : sunSeries;
+    const score = pts.reduce((acc, p) => {
+      const w = 1 / (1 + Math.abs(p.sun.altitude));
+      if (p.relative > 0) acc.right += w; else acc.left += w;
+      return acc;
+    }, { left: 0, right: 0 });
+    const best = score.right > score.left ? 'Right side' : 'Left side';
+    const confidence = Math.round((Math.max(score.left, score.right) / (score.left + score.right)) * 100);
+    const firstAlt = pts[0].sun.altitude;
+    const lastAlt = pts[pts.length - 1].sun.altitude;
+    const trend = lastAlt > firstAlt ? 'sunrise' : 'sunset';
+    const filtered = pts.filter((p) => (best.startsWith('Right') ? p.relative > 0 : p.relative < 0));
+    const bestMoment = filtered.reduce((a, b) => (Math.abs(a.sun.altitude) < Math.abs(b.sun.altitude) ? a : b), filtered[0] || pts[0]);
+    return { best, confidence, trend, at: bestMoment?.t, atLocal: bestMoment ? new Date(bestMoment.t).toLocaleString() : null };
+  }, [sunSeries]);
 
 
 
@@ -200,6 +278,16 @@ const FlightMapPage = () => {
                 error={errors.departureTime}
               />
             </div>
+            <div>
+              <Input
+                label="Cruise Speed (km/h)"
+                type="number"
+                name="cruiseSpeed"
+                value={formData.cruiseSpeed}
+                onChange={handleChange}
+                error={errors.cruiseSpeed}
+              />
+            </div>
             
             {/* Arrival time is computed, not entered */}
             
@@ -262,6 +350,26 @@ const FlightMapPage = () => {
               </div>
             </Card>
           )}
+
+          {/* Seat Recommendation */}
+          {seatRecommendation && (
+            <Card className="mt-6 p-4">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Seat Recommendation</h3>
+              <div className="text-gray-800">
+                <div className="text-xl font-bold">{seatRecommendation.best}</div>
+                <div className="text-sm text-gray-600">Best chance to enjoy {seatRecommendation.trend} · Confidence {seatRecommendation.confidence}%</div>
+                {seatRecommendation.at && (
+                  <div className="text-sm text-gray-600 mt-1">Peak moment around: {seatRecommendation.atLocal}</div>
+                )}
+              </div>
+            </Card>
+          )}
+          {!seatRecommendation && routeData && (
+            <Card className="mt-6 p-4">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Seat Recommendation</h3>
+              <div className="text-sm text-gray-700">Add a departure time to get a left/right seat suggestion for sunrise/sunset.</div>
+            </Card>
+          )}
           
           {/* Back to Flight Map */}
           <div className="mt-6">
@@ -282,7 +390,9 @@ const FlightMapPage = () => {
           pathJson={pathJsonMemo}
           tileUrl={"https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png"}
           tileAttribution={"&copy; OpenStreetMap contributors, &copy; CARTO"}
-          features={mapFeatures}
+          features={combinedFeatures}
+          currentPoint={currentSample?.pos || null}
+          extraLines={extraLines}
           pointsPerSegment={64}
         />
         
@@ -331,6 +441,39 @@ const FlightMapPage = () => {
                 );
               })()}
             
+            </div>
+          </div>
+        )}
+
+        {/* Sun Overlay and Time Slider */}
+        {sunSeries.length > 0 && (
+          <div className="absolute bottom-4 right-4 bg-white rounded-lg shadow-lg p-3 text-sm max-w-md z-[1000]">
+            <h4 className="font-semibold mb-2 text-black">Sun Overlay</h4>
+            <ul className="text-gray-700 list-disc pl-5 space-y-1">
+              <li>Amber dot marks subsolar point (sun overhead)</li>
+              <li>Ray shows sun direction relative to aircraft</li>
+            </ul>
+            <div className="mt-3">
+              <input
+                type="range"
+                min={0}
+                max={Math.max(0, sunSeries.length - 1)}
+                value={scrubIdx}
+                onChange={(e) => setScrubIdx(Number(e.target.value))}
+                className="w-full"
+              />
+              {currentSample && (
+                <div className="mt-1 text-gray-700 flex justify-between">
+                  <span>{new Date(sunSeries[0].t).toLocaleTimeString()}</span>
+                  <span className="font-medium">{new Date(currentSample.t).toLocaleString()}</span>
+                  <span>{new Date(sunSeries[sunSeries.length - 1].t).toLocaleTimeString()}</span>
+                </div>
+              )}
+              {currentSample && (
+                <div className="mt-1 text-gray-600">
+                  Sun azimuth: {Math.round(currentSample.sun.azimuth)}° · altitude: {Math.round(currentSample.sun.altitude)}° · Look to the <span className="font-medium">{currentSample.side}</span>.
+                </div>
+              )}
             </div>
           </div>
         )}
