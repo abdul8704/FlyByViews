@@ -103,4 +103,18 @@ const generateFlightPath = async (cityA, cityB, spacingKm = 50) => {
   console.log(path);
 };
 
-module.exports = { generateFlightPath, getCoordinates, haversineDistance, getGreatCirclePathByDistance, initialBearing };
+// Helper function to calculate distance between two coordinates (Haversine formula)
+function calculateDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371; // Earth's radius in kilometers
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = 
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+    Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  const distance = R * c; // Distance in kilometers
+  return Math.round(distance * 100) / 100; // Round to 2 decimal places
+}
+
+module.exports = { generateFlightPath, getCoordinates, haversineDistance, getGreatCirclePathByDistance, initialBearing, calculateDistance };

@@ -208,7 +208,7 @@ const FlightMapPage = () => {
     setLoading(true);
     try {
       // Call the route-scenery API with just city names
-      const response = await api.post('/api/flights/route-scenery-mongo', {
+      const response = await api.post('/api/flights/route-scenery', {
         sourceCity: formData.sourceCity,
         destCity: formData.destCity,
         // departureTime is optional; include only if provided
