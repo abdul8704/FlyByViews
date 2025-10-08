@@ -1,5 +1,6 @@
-// MongoDB-based geographic service - Simple functions with direct MongoDB queries
+// MongoDB-based geographic service - Simplified for direct queries only
 const mongoose = require('mongoose');
+const { formatFeatures, createCirclePolygon } = require('../utils/geoFormat.utils');
 
 // Get direct access to MongoDB collections
 function getCollections() {
@@ -11,39 +12,11 @@ function getCollections() {
   };
 }
 
-// Create required indexes for geospatial queries
-async function ensureIndexes() {
-  try {
-    const { peaks, volcanoes, coastlines } = getCollections();
-    
-    console.log('Creating 2dsphere indexes for geospatial queries...');
-    
-    // Create indexes in parallel
-    await Promise.all([
-      peaks.createIndex({ "geometry": "2dsphere" }),
-      peaks.createIndex({ "properties.natural": 1 }),
-      volcanoes.createIndex({ "geometry": "2dsphere" }),
-      volcanoes.createIndex({ "properties.natural": 1 }),
-      coastlines.createIndex({ "geometry": "2dsphere" }),
-      coastlines.createIndex({ "properties.natural": 1 })
-    ]);
-    
-    console.log('All geospatial indexes created successfully');
-    return true;
-  } catch (error) {
-    console.error('Error creating indexes:', error.message);
-    return false;
-  }
-}
-
 // Main function to get scenery features near a point using MongoDB geospatial queries
 async function getSceneryNearPoint(lat, lon, radiusKm = 50) {
   console.log(
     `MongoDB query: Finding features within ${radiusKm}km of (${lat}, ${lon})`
   );
-
-  // Ensure indexes exist before querying
-  await ensureIndexes();
 
   const radiusMeters = radiusKm * 1000;
   const results = {
@@ -144,10 +117,7 @@ async function findVolcanoesNear(lat, lon, radiusMeters) {
 }
 
 async function findCoastlinesNear(lat, lon, radiusMeters) {
-  const { coastlines } = await getCollections(); // make sure this returns the native collection
-
-  // Only need $geoIntersects since all coastlines are LineString / MultiPolygon
-  const circlePolygon = createCirclePolygon(lat, lon, radiusMeters, 64); // 64 points for smoother circle
+  const { coastlines } = getCollections();
 
   // Query coastlines using $geoIntersects
   const nearbyCoastlines = await coastlines.find({
@@ -156,7 +126,7 @@ async function findCoastlinesNear(lat, lon, radiusMeters) {
       $geoIntersects: {
         $geometry: {
           type: "Polygon",
-          coordinates: [circlePolygon] // GeoJSON expects array of linear rings
+          coordinates: [createCirclePolygon(lat, lon, radiusMeters)]
         }
       }
     }
@@ -165,114 +135,8 @@ async function findCoastlinesNear(lat, lon, radiusMeters) {
   return nearbyCoastlines;
 }
 
-// Create a circular polygon (GeoJSON-compliant)
-function createCirclePolygon(lat, lon, radiusMeters, points = 32) {
-  const earthRadius = 6371000; // meters
-  const coordinates = [];
 
-  for (let i = 0; i <= points; i++) { // <= to close the polygon
-    const angle = (i * 360 / points) * Math.PI / 180;
-    const dx = radiusMeters * Math.cos(angle);
-    const dy = radiusMeters * Math.sin(angle);
-
-    const deltaLat = (dy / earthRadius) * (180 / Math.PI);
-    const deltaLon = (dx / (earthRadius * Math.cos(lat * Math.PI / 180))) * (180 / Math.PI);
-
-    coordinates.push([lon + deltaLon, lat + deltaLat]);
-  }
-
-  return coordinates;
-}
-// (async () => {
-//   const lat = 13.0836939;
-//   const lon = 80.270186;
-//   const radiusMeters = 100000; // 100 km
-
-//   const nearby = await findCoastlinesNear(lat, lon, radiusMeters);
-//   console.log('Nearby coastlines:', nearby.length);
-// })();
-
-
-// Format MongoDB documents to match the expected feature format
-function formatFeatures(docs, genericType) {
-  return docs.map(doc => {
-    // Extract coordinates based on geometry type
-    let lat, lon;
-    if (doc.geometry.type === 'Point') {
-      [lon, lat] = doc.geometry.coordinates;
-    } else if (doc.geometry.type === 'LineString') {
-      // Use first coordinate for LineString
-      [lon, lat] = doc.geometry.coordinates[0];
-    } else if (doc.geometry.type === 'Polygon') {
-      // Use first coordinate of first ring for Polygon
-      [lon, lat] = doc.geometry.coordinates[0][0];
-    }
-
-    // Handle elevation data (can be string, number, or object)
-    let elevation = null;
-    if (doc.properties.elevation) {
-      elevation = parseFloat(doc.properties.elevation);
-    } else if (doc.properties.ele) {
-      if (typeof doc.properties.ele === 'object' && doc.properties.ele.$numberDouble) {
-        elevation = parseFloat(doc.properties.ele.$numberDouble);
-      } else {
-        elevation = parseFloat(doc.properties.ele);
-      }
-    }
-
-    return {
-      lat: parseFloat(lat),
-      lon: parseFloat(lon),
-      name: doc.properties.name || doc.properties.alt_name || 'Unnamed',
-      type: doc.properties.natural,
-      genericType: genericType,
-      elevation: isNaN(elevation) ? null : elevation,
-      source: 'mongodb',
-      geometry_type: doc.geometry.type,
-      // Include additional properties if available
-      ...(doc.properties.prominence && { prominence: doc.properties.prominence }),
-      ...(doc.properties.isolation && { isolation: doc.properties.isolation })
-    };
-  });
-}
-
-// Get service statistics
-async function getServiceStats() {
-  try {
-    const { peaks, volcanoes, coastlines } = getCollections();
-    
-    const [peakCount, volcanoCount, coastlineCount] = await Promise.all([
-      peaks.countDocuments(),
-      volcanoes.countDocuments(),
-      coastlines.countDocuments(),
-    ]);
-
-    return {
-      serviceName: "MongoDB Geographic Service (Direct Queries)",
-      totalFeatures: peakCount + volcanoCount + coastlineCount,
-      breakdown: {
-        peaks: peakCount,
-        volcanoes: volcanoCount,
-        coastlines: coastlineCount,
-      },
-      indexesAvailable: "Check with db.peaks.getIndexes(), etc.",
-      recommendedIndexes: [
-        "geometry (2dsphere index)",
-        "properties.natural (regular index)",
-      ],
-    };
-  } catch (error) {
-    console.error("Error getting service stats:", error);
-    return { error: error.message };
-  }
-}
 
 module.exports = {
-  getSceneryNearPoint,
-  findPeaksNear,
-  findVolcanoesNear,
-  findCoastlinesNear,
-  formatFeatures,
-  getServiceStats,
-  ensureIndexes
+  getSceneryNearPoint
 };

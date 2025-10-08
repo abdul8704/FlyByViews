@@ -1,4 +1,4 @@
-const { getSceneryAlongRoute } = require('../service/trips.service');
+const { getSceneryAlongRoute, getSceneryAlongRouteMongo } = require('../service/trips.service');
 const { testGeoStreaming, testRoute } = require('../service/test.service');
 const { getCoordinates } = require('../utils/geocoding.utils');
 const { cacheGet, cacheSet } = require('../utils/redisClient');
@@ -221,6 +221,7 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
 }
 
 // MongoDB-based route scenery controller
+// MongoDB-based route scenery controller
 const getRouteSceneryMongo = async (req, res, next) => {
   try {
     const { sourceCity, destCity, departureTime, arrivalTime } = req.body;
@@ -234,24 +235,25 @@ const getRouteSceneryMongo = async (req, res, next) => {
 
     console.log(`[MONGODB] Planning route: ${sourceCity} → ${destCity}`);
 
-    // Cache key for MongoDB results
+    // Cache key for MongoDB results (exactly like getRouteScenery but with mongo prefix)
     const key = `mongo-${String(sourceCity).trim().toLowerCase()}-${String(destCity).trim().toLowerCase()}`;
 
     // Try cache first
-    // try {
-    //   const cached = await cacheGet(key);
-    //   if (cached) {
-    //     console.log(`[CACHE HIT] ${key}`);
-    //     return res.status(200).json(JSON.parse(cached));
-    //   }
-    // } catch (e) {
-    //   console.log(`[CACHE READ FAIL] ${key}:`, e.message);
-    // }
+    try {
+      const cached = await cacheGet(key);
+      if (cached) {
+        console.log(`[CACHE HIT] ${key}`);
+        return res.status(200).json(JSON.parse(cached));
+      }
+    } catch (e) {
+      console.log(`[CACHE READ FAIL] ${key}:`, e.message);
+    }
     
     // Geocode both cities to get coordinates
     let sourceCoords, destCoords;
     
     try {
+      // Geocode source city
       sourceCoords = await getCoordinates(sourceCity);
     } catch (error) {
       return res.status(400).json({
@@ -260,6 +262,7 @@ const getRouteSceneryMongo = async (req, res, next) => {
     }
     
     try {
+      // Geocode destination city  
       destCoords = await getCoordinates(destCity);
     } catch (error) {
       return res.status(400).json({
@@ -267,134 +270,72 @@ const getRouteSceneryMongo = async (req, res, next) => {
       });
     }
     
-    // Calculate route distance
-    const distance = calculateDistance(
-      sourceCoords.lat, sourceCoords.lon,
-      destCoords.lat, destCoords.lon
-    );
-
-    console.log(`Route coordinates: ${sourceCity} (${sourceCoords.lat}, ${sourceCoords.lon}) → ${destCity} (${destCoords.lat}, ${destCoords.lon}), Distance: ${distance} km`);
+    // Prepare source and destination data for the service
+    const sourceData = {
+      lat: sourceCoords.lat,
+      lon: sourceCoords.lon,
+      name: sourceCoords.city || sourceCity,
+      country: sourceCoords.country
+    };
     
-    // Get scenery features using MongoDB queries
-    // Query multiple points along the route for comprehensive coverage
-    const routePoints = generateRoutePoints(sourceCoords, destCoords, 5); // 5 points along route
-    const allFeatures = [];
+    const destData = {
+      lat: destCoords.lat,
+      lon: destCoords.lon,
+      name: destCoords.city || destCity,
+      country: destCoords.country
+    };
     
-    for (const point of routePoints) {
-      const features = await getSceneryNearPoint(point.lat, point.lon, 200); // 100km radius
-      allFeatures.push(...features);
-    }
+    console.log(`Route coordinates: ${sourceData.name} (${sourceData.lat}, ${sourceData.lon}) → ${destData.name} (${destData.lat}, ${destData.lon})`);
     
-    // Remove duplicates based on coordinates (within 1km)
-    const uniqueFeatures = removeDuplicateFeatures(allFeatures);
+    // Create a flight path (can be enhanced to create curved path later)
+    const flightPath = [
+      { lat: sourceData.lat, lon: sourceData.lon },
+      { lat: destData.lat, lon: destData.lon }
+    ];
     
-    // Classify features by side (left/right/both) relative to flight path
-    const classifiedFeatures = classifyFeaturesBySide(uniqueFeatures, sourceCoords, destCoords);
-
-    // Format response
+    // Get scenery along the route using MongoDB service
+    const sceneryData = await getSceneryAlongRouteMongo(sourceData, destData);
+    
+    // Format response to match expected structure (EXACTLY like getRouteScenery)
     const response = {
+      path: flightPath,
+      results: sceneryData.results || {
+        left: [],
+        right: [],
+        both: []
+      },
       metadata: {
         source: {
-          lat: sourceCoords.lat,
-          lon: sourceCoords.lon,
-          name: sourceCoords.name || sourceCity,
-          originalInput: sourceCity
+          ...sourceData,
+          originalInput: sourceCity,
+          geocoded: sourceCoords
         },
         destination: {
-          lat: destCoords.lat,
-          lon: destCoords.lon,
-          name: destCoords.name || destCity,
-          originalInput: destCity
+          ...destData,
+          originalInput: destCity,
+          geocoded: destCoords
         },
-        distance: distance,
-        ...(departureTime && { departureTime }),
-        ...(arrivalTime && { arrivalTime }),
-        queryMethod: 'mongodb',
-        totalFeatures: uniqueFeatures.length,
-        queryRadius: '100km per point',
-        routePoints: routePoints.length
-      },
-      results: classifiedFeatures,
-      stats: {
-        left: classifiedFeatures.left?.length || 0,
-        right: classifiedFeatures.right?.length || 0,
-        both: classifiedFeatures.both?.length || 0,
-        total: uniqueFeatures.length
+        departureTime,
+        arrivalTime,
+        sceneryAlgorithm: sceneryData.algorithm || 'mongodb-direct',
+        distance: calculateDistance(sourceData.lat, sourceData.lon, destData.lat, destData.lon)
       }
     };
-
-    // Cache the response
-    // try {
-    //   await cacheSet(key, JSON.stringify(response), TTL_SECONDS);
-    //   console.log(`[CACHE SET] ${key}`);
-    // } catch (e) {
-    //   console.log(`[CACHE WRITE FAIL] ${key}:`, e.message);
-    // }
+    
+    // Store in cache (best-effort)
+    try {
+      await cacheSet(key, JSON.stringify(response), TTL_SECONDS);
+      console.log(`[CACHE SET] ${key} (ttl=${TTL_SECONDS}s)`);
+    } catch (e) {
+      console.log(`[CACHE WRITE FAIL] ${key}:`, e.message);
+    }
 
     res.status(200).json(response);
-
-  } catch (error) {
-    console.error('MongoDB route scenery error:', error);
-    next(error);
+  } catch (err) {
+    console.error('Route scenery error:', err);
+    next(err);
   }
 };
-
-// Helper function to generate intermediate points along route
-function generateRoutePoints(source, dest, numPoints = 5) {
-  const points = [];
-  for (let i = 0; i < numPoints; i++) {
-    const fraction = i / (numPoints - 1);
-    const lat = source.lat + (dest.lat - source.lat) * fraction;
-    const lon = source.lon + (dest.lon - source.lon) * fraction;
-    points.push({ lat, lon });
-  }
-  return points;
-}
-
-// Helper function to remove duplicate features
-function removeDuplicateFeatures(features, tolerance = 0.01) { // ~1km tolerance
-  const unique = [];
-  const seen = new Set();
-  
-  for (const feature of features) {
-    const key = `${Math.round(feature.lat / tolerance) * tolerance}_${Math.round(feature.lon / tolerance) * tolerance}_${feature.type}`;
-    if (!seen.has(key)) {
-      seen.add(key);
-      unique.push(feature);
-    }
-  }
-  
-  return unique;
-}
-
-// Helper function to classify features by side
-function classifyFeaturesBySide(features, source, dest) {
-  const result = { left: [], right: [], both: [] };
-  
-  for (const feature of features) {
-    const side = determineSide(source, dest, feature);
-    result[side].push(feature);
-  }
-  
-  return result;
-}
-
-// Determine which side of the flight path a feature is on
-function determineSide(source, dest, feature) {
-  // Vector from source to destination
-  const dx = dest.lon - source.lon;
-  const dy = dest.lat - source.lat;
-  
-  // Vector from source to feature
-  const fx = feature.lon - source.lon;
-  const fy = feature.lat - source.lat;
-  
-  // Cross product to determine side
-  const cross = dx * fy - dy * fx;
-  
-  if (Math.abs(cross) < 0.001) return 'both'; // Very close to the path
-  return cross > 0 ? 'left' : 'right';
-}
 
 module.exports = { 
   getRouteScenery, 
