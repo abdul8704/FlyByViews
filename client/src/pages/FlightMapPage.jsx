@@ -24,6 +24,7 @@ const FlightMapPage = () => {
   
   // UI state
   const [loading, setLoading] = useState(false);
+  const [loadingText, setLoadingText] = useState('');
   const [errors, setErrors] = useState({});
   const [scrubIdx, setScrubIdx] = useState(0);
 
@@ -115,14 +116,38 @@ const FlightMapPage = () => {
   const sunOverlayFeatures = useMemo(() => {
     if (!sunSeries.length) return [];
     const sample = currentSample ?? sunSeries[Math.floor(sunSeries.length / 2)];
-    const subsolar = getSubsolarPoint(sample.t);
-    console.log('Creating subsolar point:', subsolar, 'at time:', sample.t);
-    return [{ lat: subsolar.lat, lon: subsolar.lon, type: 'subsolar_point', name: 'Subsolar point' }];
+    if (!sample) return [];
+    
+    try {
+      const subsolar = getSubsolarPoint(sample.t);
+      console.log('Creating subsolar point:', subsolar, 'at time:', sample.t);
+      
+      // Validate subsolar coordinates before creating feature
+      if (subsolar && 
+          typeof subsolar.lat === 'number' && 
+          typeof subsolar.lon === 'number' &&
+          !isNaN(subsolar.lat) && 
+          !isNaN(subsolar.lon)) {
+        return [{ lat: subsolar.lat, lon: subsolar.lon, type: 'subsolar_point', name: 'Subsolar point' }];
+      }
+    } catch (error) {
+      console.warn('Error creating subsolar point:', error);
+    }
+    
+    return [];
   }, [sunSeries, currentSample]);
 
 
   const combinedFeatures = useMemo(() => {
-    return [...mapFeatures, ...sunOverlayFeatures];
+    // Filter out any features with invalid coordinates
+    const validFeatures = [...mapFeatures, ...sunOverlayFeatures].filter(feature => 
+      feature && 
+      typeof feature.lat === 'number' && 
+      typeof feature.lon === 'number' &&
+      !isNaN(feature.lat) && 
+      !isNaN(feature.lon)
+    );
+    return validFeatures;
   }, [mapFeatures, sunOverlayFeatures]);
 
   const seatRecommendation = useMemo(() => {
@@ -164,6 +189,38 @@ const FlightMapPage = () => {
     }
     return { scenicSide, dominantType, differs: true };
   }, [sceneryCounts, seatRecommendation]);
+
+  // Loading text cycling effect
+  useEffect(() => {
+    const loadingMessages = [
+      'Planning your flight route...',
+      'Scanning for scenic mountains...',
+      'Searching for beautiful coastlines...',
+      'Finding volcanic landscapes...',
+      'Analyzing geographic features...',
+      'Optimizing scenery visibility...',
+      'Processing satellite imagery...',
+      'Calculating best viewing angles...'
+    ];
+
+    let messageIndex = 0;
+    let interval;
+
+    if (loading) {
+      // Set initial message
+      setLoadingText(loadingMessages[0]);
+      
+      // Change message every 5 seconds
+      interval = setInterval(() => {
+        messageIndex = (messageIndex + 1) % loadingMessages.length;
+        setLoadingText(loadingMessages[messageIndex]);
+      }, 5000);
+    }
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [loading]);
 
 
 
@@ -219,20 +276,36 @@ const FlightMapPage = () => {
       
       setRouteData(response.data);
       
-      // Extract coordinates from the API response
-      const sourceCoords = {
-        lat: response.data.metadata.source.lat,
-        lon: response.data.metadata.source.lon
-      };
-      const destCoords = {
-        lat: response.data.metadata.destination.lat,
-        lon: response.data.metadata.destination.lon
-      };
-      
-      setSourceCoords(sourceCoords);
-      setDestCoords(destCoords);
-      
-      setRouteData(response.data);
+      // Extract coordinates from the API response with safety checks
+      if (response.data?.metadata?.source && response.data?.metadata?.destination) {
+        const sourceCoords = {
+          lat: response.data.metadata.source.lat,
+          lon: response.data.metadata.source.lon
+        };
+        const destCoords = {
+          lat: response.data.metadata.destination.lat,
+          lon: response.data.metadata.destination.lon
+        };
+        
+        // Only set coordinates if they are valid numbers
+        if (typeof sourceCoords.lat === 'number' && typeof sourceCoords.lon === 'number' &&
+            typeof destCoords.lat === 'number' && typeof destCoords.lon === 'number' &&
+            !isNaN(sourceCoords.lat) && !isNaN(sourceCoords.lon) &&
+            !isNaN(destCoords.lat) && !isNaN(destCoords.lon)) {
+          setSourceCoords(sourceCoords);
+          setDestCoords(destCoords);
+        } else {
+          console.error('Invalid coordinates in API response:', { sourceCoords, destCoords });
+          setErrors({ 
+            submit: 'Invalid coordinates received from server. Please try again.' 
+          });
+        }
+      } else {
+        console.error('Missing metadata in API response:', response.data);
+        setErrors({ 
+          submit: 'Invalid response format from server. Please try again.' 
+        });
+      }
       
     } catch (error) {
       console.error('Error planning route:', error);
@@ -339,11 +412,6 @@ const FlightMapPage = () => {
                       <td className="px-3 py-2 text-right text-gray-900">{sceneryCounts.left.volcano}</td>
                       <td className="px-3 py-2 text-right text-gray-900">{sceneryCounts.right.volcano}</td>
                     </tr>
-                    <tr className="border-t border-gray-200">
-                      <td className="px-3 py-2 text-gray-700">Other</td>
-                      <td className="px-3 py-2 text-right text-gray-900">{sceneryCounts.left.other}</td>
-                      <td className="px-3 py-2 text-right text-gray-900">{sceneryCounts.right.other}</td>
-                    </tr>
                     <tr className="border-t border-gray-300 bg-gray-50">
                       <td className="px-3 py-2 font-semibold text-gray-900">Total</td>
                       <td className="px-3 py-2 text-right font-semibold text-gray-900">{sceneryCounts.left.total}</td>
@@ -420,13 +488,21 @@ const FlightMapPage = () => {
       
       {/* Right Panel - Map (2/3 width) */}
   <div className="w-2/3 relative h-full">
-        {/* PathMap Component */}
+        {/* PathMap Component - Always visible, shows route when available */}
         <PathMap 
           pathJson={pathJsonMemo}
           tileUrl={"https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png"}
           tileAttribution={"&copy; OpenStreetMap contributors, &copy; CARTO"}
           features={combinedFeatures}
-          currentPoint={currentSample?.pos || null}
+          currentPoint={
+            currentSample?.pos && 
+            typeof currentSample.pos.lat === 'number' && 
+            typeof currentSample.pos.lon === 'number' &&
+            !isNaN(currentSample.pos.lat) && 
+            !isNaN(currentSample.pos.lon) 
+              ? currentSample.pos 
+              : null
+          }
           pointsPerSegment={64}
         />
         
@@ -520,10 +596,40 @@ const FlightMapPage = () => {
         
         {/* Loading Overlay */}
         {loading && (
-          <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[1000]">
-            <div className="bg-white p-6 rounded-lg shadow-lg text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <p className="text-gray-600">Planning your route and finding scenery...</p>
+          <div className="absolute inset-0 bg-gradient-to-br from-black/70 to-blue-900/50 backdrop-blur-sm flex items-center justify-center z-[1000]">
+            <div className="bg-white/95 backdrop-blur-sm p-8 rounded-2xl shadow-2xl text-center max-w-md mx-4 border border-white/20">
+              {/* Animated plane icon */}
+              <div className="relative mb-6">
+                <div className="w-16 h-16 mx-auto rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
+                  <svg className="w-8 h-8 text-white animate-bounce" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
+                  </svg>
+                </div>
+                {/* Orbiting dots */}
+                <div className="absolute inset-0 animate-spin">
+                  <div className="w-2 h-2 bg-blue-400 rounded-full absolute top-0 left-1/2 transform -translate-x-1/2"></div>
+                  <div className="w-2 h-2 bg-purple-400 rounded-full absolute bottom-0 left-1/2 transform -translate-x-1/2"></div>
+                  <div className="w-2 h-2 bg-indigo-400 rounded-full absolute left-0 top-1/2 transform -translate-y-1/2"></div>
+                  <div className="w-2 h-2 bg-cyan-400 rounded-full absolute right-0 top-1/2 transform -translate-y-1/2"></div>
+                </div>
+              </div>
+              
+              {/* Loading text with fade animation */}
+              <div className="min-h-[3rem] flex items-center justify-center">
+                <p className="text-gray-700 text-lg font-medium animate-pulse transition-all duration-500">
+                  {loadingText}
+                </p>
+              </div>
+              
+              {/* Progress bar */}
+              <div className="mt-4 w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                <div className="h-full bg-gradient-to-r from-blue-500 via-purple-500 to-cyan-500 rounded-full animate-pulse"></div>
+              </div>
+              
+              {/* Estimated time */}
+              <p className="text-sm text-gray-500 mt-3">
+                This may take up to 20 seconds...
+              </p>
             </div>
           </div>
         )}

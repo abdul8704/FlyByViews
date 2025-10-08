@@ -49,7 +49,8 @@ function createCirclePolygon(lat, lon, radiusMeters, points = 16) {
   const earthRadius = 6371000; // Earth radius in meters
   const coordinates = [];
   
-  for (let i = 0; i <= points; i++) {
+  // Create points around the circle
+  for (let i = 0; i < points; i++) {
     const angle = (i * 360 / points) * Math.PI / 180;
     const dx = radiusMeters * Math.cos(angle);
     const dy = radiusMeters * Math.sin(angle);
@@ -60,10 +61,30 @@ function createCirclePolygon(lat, lon, radiusMeters, points = 16) {
     coordinates.push([lon + deltaLon, lat + deltaLat]);
   }
   
+  // Close the polygon by adding the first point as the last point
+  if (coordinates.length > 0) {
+    coordinates.push([...coordinates[0]]);
+  }
+  
   return coordinates;
+}
+
+function preparePolygonForMongo(coords) {
+  // Close loop if necessary
+  const first = coords[0];
+  const last = coords[coords.length - 1];
+  if (first[0] !== last[0] || first[1] !== last[1]) {
+    coords.push(first);
+  }
+
+  // Round floats to avoid tiny precision errors
+  const rounded = coords.map(([lon, lat]) => [parseFloat(lon.toFixed(6)), parseFloat(lat.toFixed(6))]);
+
+  return [rounded]; // wrap in extra array for GeoJSON Polygon
 }
 
 module.exports = {
   formatFeatures,
-  createCirclePolygon
+  createCirclePolygon,
+  preparePolygonForMongo
 };

@@ -19,7 +19,7 @@ const getRouteSceneryMongo = async (req, res, next) => {
     console.log(`[MONGODB] Planning route: ${sourceCity} → ${destCity}`);
 
     // Cache key for MongoDB results (exactly like getRouteScenery but with mongo prefix)
-    const key = `mongo-${String(sourceCity).trim().toLowerCase()}-${String(destCity).trim().toLowerCase()}`;
+    const key = `${String(sourceCity).trim().toLowerCase()}-${String(destCity).trim().toLowerCase()}`;
 
     // Try cache first
     try {

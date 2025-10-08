@@ -68,7 +68,7 @@ async function findPeaksNear(lat, lon, radiusMeters) {
         $maxDistance: radiusMeters
       }
     }
-  }).limit(200).toArray();
+  }).toArray();
 
   // Query LineString/Polygon/MultiPolygon with $geoIntersects
   const others = await peaks.find({
@@ -79,7 +79,7 @@ async function findPeaksNear(lat, lon, radiusMeters) {
         $geometry: { type: "Polygon", coordinates: [createCirclePolygon(lat, lon, radiusMeters)] }
       }
     }
-  }).limit(200).toArray();
+  }).toArray();
 
   // Merge results
   return [...points, ...others];
@@ -99,7 +99,7 @@ async function findVolcanoesNear(lat, lon, radiusMeters) {
         $maxDistance: radiusMeters
       }
     }
-  }).limit(200).toArray();
+  }).toArray();
 
   // Query LineString/Polygon/MultiPolygon with $geoIntersects
   const others = await volcanoes.find({
@@ -110,7 +110,7 @@ async function findVolcanoesNear(lat, lon, radiusMeters) {
         $geometry: { type: "Polygon", coordinates: [createCirclePolygon(lat, lon, radiusMeters)] }
       }
     }
-  }).limit(200).toArray();
+  }).toArray();
 
   // Merge results
   return [...points, ...others];
