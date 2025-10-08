@@ -214,7 +214,7 @@ const FlightMapPage = () => {
       interval = setInterval(() => {
         messageIndex = (messageIndex + 1) % loadingMessages.length;
         setLoadingText(loadingMessages[messageIndex]);
-      }, 5000);
+      }, 3000);
     }
 
     return () => {
