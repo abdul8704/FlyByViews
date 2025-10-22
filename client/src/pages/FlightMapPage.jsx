@@ -194,13 +194,11 @@ const FlightMapPage = () => {
   useEffect(() => {
     const loadingMessages = [
       'Planning your flight route...',
+      'Calculating distance...',
       'Scanning for scenic mountains...',
       'Searching for beautiful coastlines...',
       'Finding volcanic landscapes...',
-      'Analyzing geographic features...',
-      'Optimizing scenery visibility...',
-      'Processing satellite imagery...',
-      'Calculating best viewing angles...'
+      'Analyzing geographic features...'
     ];
 
     let messageIndex = 0;
@@ -214,7 +212,7 @@ const FlightMapPage = () => {
       interval = setInterval(() => {
         messageIndex = (messageIndex + 1) % loadingMessages.length;
         setLoadingText(loadingMessages[messageIndex]);
-      }, 3000);
+      }, 3500);
     }
 
     return () => {
@@ -348,7 +346,7 @@ const FlightMapPage = () => {
                 name="destCity"
                 value={formData.destCity}
                 onChange={handleChange}
-                placeholder="Srinagar"
+                placeholder="Leh"
                 error={errors.destCity}
                 required
               />
