@@ -1,7 +1,7 @@
 const axios = require("axios");
 
 // API endpoint
-const API_URL = "https://flybyviews.onrender.com/api/flights/route-scenery";
+const API_URL = "http://localhost:5000/api/flights/route-scenery";
 
 // Test cases: Indian source cities → Asian destinations
 const testCases = [

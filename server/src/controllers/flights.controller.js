@@ -1,5 +1,5 @@
 const { getSceneryAlongRouteMongo } = require('../service/trips.service');
-const { getCoordinates } = require('../utils/geocoding.utils');
+const { getCoordinates, delay } = require('../utils/geocoding.utils');
 const { cacheGet, cacheSet } = require('../utils/redisClient');
 const { TTL_SECONDS }= require("../constants/app.constants"); // 7 days
 const { calculateDistance } = require('../utils/flight.utils');
@@ -43,6 +43,9 @@ const getRouteSceneryMongo = async (req, res, next) => {
         error: `Failed to find source city "${sourceCity}": ${error.message}`
       });
     }
+
+    // Nominatim public endpoint: keep requests at ~1/sec to avoid being blocked
+    await delay(1100);
     
     try {
       // Geocode destination city  

@@ -1,5 +1,20 @@
 const axios = require('axios');
 
+const NOMINATIM_BASE_URL = process.env.NOMINATIM_BASE_URL || 'https://nominatim.openstreetmap.org';
+
+function buildNominatimHeaders() {
+  const contactEmail = process.env.USER_EMAIL || process.env.NOMINATIM_EMAIL;
+  const userAgent =
+    process.env.NOMINATIM_USER_AGENT ||
+    `FlyByViews/1.0${contactEmail ? ` (${contactEmail})` : ''}`;
+
+  return {
+    // Nominatim usage policy requires a valid identifying User-Agent.
+    'User-Agent': userAgent,
+    'Accept-Language': 'en',
+  };
+}
+
 /**
  * Geocoding utility using OpenStreetMap Nominatim API
  * Converts city name to coordinates
@@ -12,15 +27,18 @@ async function getCoordinates(cityName) {
 
     console.log(`Geocoding city: ${cityName}`);
     
-    const response = await axios.get('https://nominatim.openstreetmap.org/search', {
+    const contactEmail = process.env.USER_EMAIL || process.env.NOMINATIM_EMAIL;
+
+    const response = await axios.get(`${NOMINATIM_BASE_URL}/search`, {
       params: {
         q: cityName.trim(),
         format: 'json',
         limit: 1, // Only get the first result
-        addressdetails: 1 // Include address details
+        addressdetails: 1, // Include address details
+        ...(contactEmail ? { email: contactEmail } : {})
       },
       headers: {
-        'User-Agent': 'FlightBookingApp/1.0 (flight-booking@example.com)' // Required by Nominatim
+        ...buildNominatimHeaders()
       },
       timeout: 10000 // 10 second timeout
     });
@@ -50,6 +68,13 @@ async function getCoordinates(cityName) {
     
     if (error.response) {
       console.error('Geocoding API error:', error.response.status, error.response.data);
+      if (error.response.status === 403) {
+        throw new Error(
+          `Failed to geocode "${cityName}": Nominatim returned 403 (Access denied). ` +
+            `This usually means your requests are being blocked by the public OSM Nominatim usage policy ` +
+            `(missing/invalid User-Agent contact, too many requests, or automated traffic).`
+        );
+      }
       throw new Error(`Failed to geocode "${cityName}": API error ${error.response.status}`);
     }
     
@@ -67,15 +92,18 @@ async function getAddress(lat, lon) {
       throw new Error('Latitude and longitude must be numbers');
     }
 
-    const response = await axios.get('https://nominatim.openstreetmap.org/reverse', {
+    const contactEmail = process.env.USER_EMAIL || process.env.NOMINATIM_EMAIL;
+
+    const response = await axios.get(`${NOMINATIM_BASE_URL}/reverse`, {
       params: {
         lat: lat,
         lon: lon,
         format: 'json',
-        addressdetails: 1
+        addressdetails: 1,
+        ...(contactEmail ? { email: contactEmail } : {})
       },
       headers: {
-        'User-Agent': 'FlightBookingApp/1.0 (flight-booking@example.com)'
+        ...buildNominatimHeaders()
       },
       timeout: 10000
     });

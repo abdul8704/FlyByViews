@@ -1,30 +1,51 @@
-const { createClient } = require('redis');
-require('dotenv').config();
+const { createClient } = require("redis");
+require("dotenv").config();
+
+function toBool(value) {
+  return (
+    String(value || "")
+      .trim()
+      .toLowerCase() === "true"
+  );
+}
 
 // Build options from env or provided snippet defaults
 function buildClientOptions() {
   // Highest priority: REDIS_URL if provided
-  const url = process.env.REDIS_URL;
-  console.log('Redis URL from env:', url);
+  let url = process.env.REDIS_URL;
   if (url) {
-    // If URL uses rediss (TLS), ensure socket.tls is enabled as well
-    const needsTls = url.startsWith('rediss://');
-    if (needsTls) {
-      try {
-        const parsed = new URL(url);
+    try {
+      const parsed = new URL(url);
+      const tlsFromEnv = toBool(process.env.REDIS_TLS);
+      const needsTls = parsed.protocol === "rediss:" || tlsFromEnv;
+
+      if (!parsed.port && process.env.REDIS_PORT) {
+        parsed.port = String(process.env.REDIS_PORT);
+        url = parsed.toString();
+      }
+
+      console.log(
+        `Redis config: url provided (host=${parsed.hostname}, port=${parsed.port || "default"}, tls=${needsTls})`,
+      );
+
+      if (needsTls) {
         return {
           url,
           socket: {
-            tls: true,
-            // Some providers prefer SNI servername to match certificate CN
+            tls: false,
             servername: parsed.hostname,
+            rejectUnauthorized: false,
           },
         };
-      } catch {
-        return { url, socket: { tls: true } };
       }
+
+      return { url };
+    } catch {
+      console.warn(
+        "Redis config: REDIS_URL is set but could not be parsed; falling back to raw url",
+      );
+      return { url };
     }
-    return { url };
   }
 
   // Else assemble from discrete parts (username/password/host/port)
@@ -32,7 +53,7 @@ function buildClientOptions() {
   const password = process.env.REDIS_PASSWORD;
   const host = process.env.REDIS_HOST;
   const port = Number(process.env.REDIS_PORT || 6379);
-  const tls = String(process.env.REDIS_TLS || '').toLowerCase() === 'true';
+  const tls = toBool(process.env.REDIS_TLS);
 
   // Note: Add socket: { tls: true } if your provider requires TLS.
   return {
@@ -53,11 +74,11 @@ function getClient() {
   if (!client) {
     const options = buildClientOptions();
     client = createClient(options);
-    client.on('error', (err) => console.error('Redis Client Error', err));
+    client.on("error", (err) => console.error("Redis Client Error", err));
   }
   if (!client.isOpen && !connectPromise) {
     connectPromise = client.connect().catch((err) => {
-      console.error('Redis connect failed:', err);
+      console.error("Redis connect failed:", err);
       connectPromise = null;
       throw err;
     });
@@ -71,7 +92,7 @@ async function cacheGet(key) {
   try {
     return await c.get(key);
   } catch (e) {
-    console.warn('Redis GET failed for key', key, e.message);
+    console.warn("Redis GET failed for key", key, e.message);
     return null;
   }
 }
@@ -87,7 +108,7 @@ async function cacheSet(key, value, ttlSeconds) {
     }
     return true;
   } catch (e) {
-    console.warn('Redis SET failed for key', key, e.message);
+    console.warn("Redis SET failed for key", key, e.message);
     return false;
   }
 }
